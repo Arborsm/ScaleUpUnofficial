@@ -1,6 +1,6 @@
 # ScaleUp Unofficial Mod
 
-`ScaleUp Unofficial` is an enhanced version of Platonymous's original ScaleUp mod for Stardew Valley, integrating functionality from the SpritesInDetail mod. This powerful combination enables players and modders to implement high-resolution textures and detailed character sprites while maintaining compatibility with game mechanics.
+`ScaleUp Unofficial` is an enhanced version of Platonymous's original ScaleUp mod for Stardew Valley, integrating some functionality from the SpritesInDetail mod. This powerful combination enables players and modders to implement high-resolution textures and detailed character sprites while maintaining compatibility with game mechanics.
 
 ## Key Features
 
@@ -8,13 +8,10 @@
 - Add larger and higher resolution textures than vanilla
 - Simple configuration through Content Patcher
 - Automatic texture scaling and padding
-- Preserves original game proportions while enhancing visual quality
 
 ### 👤 Detailed Character Sprites
-- High-resolution character sprites (e.g., 64x128 pixels)
-- Customizable breathing animation effects
+- High-resolution character sprites (64x128 pixels)
 - Adjustable chest/breather region positioning
-- Full compatibility with vanilla game logic
 
 ### ⚙️ Dual Rendering Modes
 1. **Traditional Scaling Mode**  
@@ -26,7 +23,7 @@
 ## Requirements
 
 - [SMAPI](https://smapi.io/) (latest version)
-- [Content Patcher](https://www.nexusmods.com/stardewvalley/mods/1915) (v1.22.0 or newer)
+- [Content Patcher](https://www.nexusmods.com/stardewvalley/mods/1915) (latest version)
 
 ## Configuration Example
 
@@ -77,7 +74,7 @@
 | `ChestSourceWidth` | Breather region width | - |
 | `ChestSourceHeight` | Breather region height | - |
 | `ChestAdjustX` | Breather region horizontal adjustment | - |
-| `ChestAdjustY` | Breather region vertical adjustment (note: Y values are doubled) | - |
+| `ChestAdjustY` | Breather region vertical adjustment | - |
 
 ## Usage Examples
 
@@ -124,18 +121,16 @@ The mod is optimized for performance, but consider these factors:
 
 **Q: Why aren't my high-res textures appearing?**  
 A: Check:
-1. Correct asset paths in configuration
-2. Content Patcher version ≥1.22.0
-3. Game logs for error messages
+1. Mod enabled
+2. Correct asset paths in configuration
+3. Content Patcher installed/enabled
+4. Game logs for error messages
 
 **Q: How do I adjust breathing animation position?**  
 A: Use `ChestAdjustX/Y` parameters. 
 
 **Q: Why don't collision boxes match the visual appearance?**  
 A: This is intentional - visual enhancements don't affect game logic or collision detection
-
-**Q: Can I use both scaling modes simultaneously?**  
-A: Yes! Configure each texture with the appropriate mode for its purpose
 
 ## Technical Notes
 
