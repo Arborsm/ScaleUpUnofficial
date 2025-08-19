@@ -17,17 +17,9 @@ public enum BreathType
 [SuppressMessage("ReSharper", "UnusedAutoPropertyAccessor.Global")]
 public class ScaleUpData
 {
-    // --- 核心属性 ---
     public string Asset { get; set; } = null!;
     public float Scale { get; set; } = 1;
-
-    // --- 新增选项：用于切换渲染模式 ---
-    /// <summary>
-    /// 如果为 true，则使用 SpritesInDetail 的高清、精细渲染逻辑。
-    /// 如果为 false，则使用 ScaleUpMod 的传统缩放逻辑。
-    /// </summary>
     public bool UseSpriteInDetail { get; set; } = false;
-        
     public int? SpriteOriginX { get; set; }
     public int? SpriteOriginY { get; set; }
     public BreathType? BreathType { get; set; }
@@ -37,13 +29,10 @@ public class ScaleUpData
     public int? ChestSourceHeight { get; set; }
     public int? ChestAdjustX { get; set; }
     public int? ChestAdjustY { get; set; }
-        
-    // --- 原始 ScaleUpMod 的内部属性和方法 ---
     public int PaddingWidth { get; set; }
     public int PaddingHeight { get; set; }
     public bool Padded => PaddingWidth + PaddingHeight > 0;
-        
-    // --- 内部缓存，用于避免重复加载纹理信息 ---
+    
     #region Internal Caching
     private int _width = -1;
     private int _height = -1;
@@ -72,28 +61,32 @@ public class ScaleUpData
 
     private void EnsureOrgDimensionsInitialized()
     {
+        float scale = UseSpriteInDetail ? 4 : Scale;
         if (_orgDimensionsInitialized) return;
         EnsureDimensionsInitialized();
-        _orgHeight = (int)((Height - PaddingHeight) / Scale);
-        _orgWidth = (int)((Width - PaddingWidth) / Scale);
+        _orgHeight = (int)((Height - PaddingHeight) / scale);
+        _orgWidth = (int)((Width - PaddingWidth) / scale);
         _orgDimensionsInitialized = true;
     }
     #endregion
         
-    /// <summary>计算传统缩放模式下的源矩形。</summary>
-    public Rectangle? GetScaledSource(Rectangle? source, int originalWidth, int originalHeight, out int padx, out int pady, bool force = false)
+    /// <summary>计算缩放模式下的源矩形。</summary>
+    public Rectangle? GetScaledSource(Rectangle? source, int originalWidth, int originalHeight, out int padx, out int pady, bool force = false, bool useSpriteInDetail = false, bool cycle = false)
     {
         padx = 0; pady = 0;
         if (source.HasValue)
         {
+            float scale = useSpriteInDetail ? 4 : Scale;
             int tilesX = OrgWidth / originalWidth;
             int tilesY = OrgHeight / originalHeight;
-            int x = source.Value.X / originalWidth % tilesX;
+            int x = source.Value.X / originalWidth;
+            if (!cycle)
+                x %= tilesX;
             int y = source.Value.Y / originalHeight;
             padx = (int)(PaddingWidth / (float)tilesX);
             pady = (int)(PaddingHeight / (float)tilesY);
-            var tileWidth = originalWidth * Scale + padx;
-            var tileHeight = originalHeight * Scale + pady;
+            var tileWidth = originalWidth * scale + padx;
+            var tileHeight = originalHeight * scale + pady;
             return GetSourceRectForStandardTileSheet(Width, y * tilesX + x, (int)tileWidth, (int)tileHeight);
         }
         else if (force)

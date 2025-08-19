@@ -75,7 +75,9 @@ public sealed class ScaleUpMod : Mod
             {
                 var keys = Scales.Keys.Where(k => Scales[k].Asset == item.Asset).ToArray();
                 foreach (var item1 in keys)
+                {
                     Scales.Remove(item1);
+                }
 
                 Monitor.Log($"Resource {item.Asset} is specified by multiple mods ({string.Join(',', keys)}). " +
                             $"All related scaling data has been removed to prevent conflicts.", LogLevel.Error);
