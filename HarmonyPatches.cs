@@ -192,7 +192,8 @@ public class HarmonyPatches
         {
             return true;
         }
-
+        
+        const int sourceOrgWidth = 16 * 4;
         var r = sourceRectangle.Value;
         Rectangle updatedDestination;
         Rectangle updatedSource;
@@ -236,17 +237,28 @@ public class HarmonyPatches
         }
         else
         {
-            if (r is { Height: 24, Width: 16 })
+            const int itemSpriteWidth = 16;
+            const int itemSpriteHeight = 24;
+            if (r is { Height: itemSpriteHeight, Width: itemSpriteWidth } or { Width: 16, Height: <32 }) // 32x32 for UIInfoSuite
             {
-                const int itemSpriteWidth = 32 / 2;
-                const int itemSpriteHeight = 64 / 2;
+                int width = (int)(itemSpriteWidth * scale.X);
+                int height = (int)(itemSpriteHeight * scale.Y);
+                int sourceX = 12;
+                int sourceY = 58;
+                int sourceWidth = sourceOrgWidth - 2 * sourceX;
+                int sourceHeight = sourceWidth * 24 / 16;
+                int xOff = 
+                    (int)(0.01302 * Math.Pow(sourceX, 3) - 0.34375 * Math.Pow(sourceX, 2) +  5.16667 * sourceX - 15);
+                int yOff = 
+                    (int)(0.0234375 * Math.Pow(sourceX, 3) - 0.778125 * 
+                        Math.Pow(sourceX, 2) + 12.6375 * sourceX - 36.7 - 3 * Math.Exp(-Math.Pow(sourceX - 12, 2) / 2));
                 updatedDestination = new Rectangle(
-                    destination.X,
-                    destination.Y,
-                    (int)(itemSpriteWidth * scale.X),
-                    (int)(itemSpriteHeight * scale.Y)
+                    destination.X + xOff,
+                    destination.Y + yOff,
+                    width,
+                    height
                 );
-                updatedSource = new Rectangle(0, 0, 16 * 4, 24 * 4);
+                updatedSource = new Rectangle(sourceX, sourceY, sourceWidth, sourceHeight);
                 updatedOrigin = origin is { X: 8, Y: 12 } ? new Vector2(32, 55) : new Vector2(16, 34);
             }
             else
