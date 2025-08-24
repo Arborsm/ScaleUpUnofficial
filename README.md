@@ -43,13 +43,7 @@
                 {
                     "Playtonymous.Haley": {
                         "Asset": "Characters/Haley",
-                        "Scale": 4,
-                        "UseSpriteInDetail": true,
-                        "BreathType": "Female",
-                        "ChestSourceX":26,
-                        "ChestSourceY":100,
-                        "ChestSourceWidth": 12,
-                        "ChestSourceHeight": 8
+                        "Sprite": {}
                     }
                 }
         },
@@ -93,18 +87,23 @@
 ### Adding Detailed Character Sprites
 ```json
 {
-  "YourMod.DetailedLewis": {
-    "Asset": "Characters/Lewis",
-    "UseSpriteInDetail": true,
-    "Scale": 4.0,
-    "BreathType": "Male",
-    "ChestSourceX": 24,
-    "ChestSourceY": 89,
-    "ChestSourceWidth": 16,
-    "ChestSourceHeight": 20,
-    //"ChestAdjustX": -14
-    //"ChestAdjustY": -14
-  }
+   "YourMod.DetailedLewis":
+   ﻿{
+      ﻿﻿"Asset": "Characters/Lewis",
+﻿      "Sprite": {
+﻿﻿      "BreathType": "Female",
+         "ChestSourceX": 24,
+         "ChestSourceY": 100,
+         "ChestSourceWidth": 16,
+         "ChestSourceHeight": 8,
+         "HeadShotX": 12,
+         "HeadShotY": 53,
+         "HeadShotXRenderOffset": 0,
+         "HeadShotYRenderOffset": 0,
+         "MiniMapXOffset": 0,
+         "MiniMapYOffset": 0
+﻿      }
+   }
 }
 ```
 
