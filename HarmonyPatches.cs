@@ -1,4 +1,5 @@
-﻿using System.Diagnostics.CodeAnalysis;
+﻿using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using HarmonyLib;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
@@ -45,7 +46,7 @@ public class HarmonyPatches
     {
         var parameters = __originalMethod.GetParameters();
         var argsByName = new Dictionary<string, object>();
-        for (int i = 0; i < parameters.Length; i++)
+        for (var i = 0; i < parameters.Length; i++)
         {
             argsByName[parameters[i].Name ?? throw new InvalidOperationException()] = __args[i];
         }
@@ -81,8 +82,8 @@ public class HarmonyPatches
             return true;
         }
 
-        return DrawLogicRouter(__instance, texture, destinationRectangle, sourceRectangle, color, rotation, origin,
-            scale, effects, layerDepth);
+        return DrawLogicRouter(__instance, texture, destinationRectangle, 
+            sourceRectangle, color, rotation, origin, scale, effects, layerDepth);
     }
 
     public static void ClearCache() => NonScaledTextureNames.Clear();
@@ -124,12 +125,13 @@ public class HarmonyPatches
         GetBounds(ref width, ref height, tilePosition, ref tileSheet);
     }
 
-    public static void GetBounds(ref int width, ref int height, int tilePosition, ref Texture2D tileSheet)
+    [SuppressMessage("ReSharper", "UnusedParameter.Local")]
+    private static void GetBounds(ref int width, ref int height, int tilePosition, ref Texture2D tileSheet)
     {
         ScaleUpMod.Scales ??=
             ScaleUpMod.Singleton.Helper.GameContent.Load<Dictionary<string, ScaleUpData>>(ScaleUpMod.ScaleUpdDataAsset);
 
-        if (tileSheet?.Name is { } name)
+        if (tileSheet.Name is { } name)
         {
             if (NonScaledTextureNames.Contains(name)) return;
             if (TryGetScaleData(name, out var data) && data != null)
@@ -149,38 +151,36 @@ public class HarmonyPatches
             return true;
         }
 
-        if (texture?.Name == null || !TryGetScaleData(texture.Name, out var data) || data == null)
+        if (texture.Name == null || !TryGetScaleData(texture.Name, out var data) || data == null)
         {
             return true;
         }
 
-        if (data.UseSpriteInDetail)
+        if (data.Sprite != null)
         {
-            return DrawWithSpriteInDetail(__instance, texture, destination, sourceRectangle, color, rotation, origin,
-                scale, effects, layerDepth, data);
+            return DrawWithSpriteInDetail(__instance, texture, destination, 
+                sourceRectangle, color, rotation, origin, scale, effects, layerDepth, data);
         }
-        else
+
+        var ow = sourceRectangle?.Width ?? data.OrgWidth;
+        var oh = sourceRectangle?.Height ?? data.OrgHeight;
+        var newSource = data.GetScaledSource(sourceRectangle, ow, oh, out var padX, out var padY, true);
+
+        var newScale = scale;
+        newScale.X /= data.Scale;
+        newScale.Y /= data.Scale;
+        var newOrigin = origin * data.Scale;
+        if (data.Padded)
         {
-            var ow = sourceRectangle?.Width ?? data.OrgWidth;
-            var oh = sourceRectangle?.Height ?? data.OrgHeight;
-            var newSource = data.GetScaledSource(sourceRectangle, ow, oh, out int padX, out int padY, true);
-
-            var newScale = scale;
-            newScale.X /= data.Scale;
-            newScale.Y /= data.Scale;
-            var newOrigin = origin * data.Scale;
-            if (data.Padded)
-            {
-                newOrigin.X += padX / 2.0f;
-                newOrigin.Y += padY;
-            }
-
-            _spriteAlreadyDrawn = true;
-            __instance.Draw(texture, destination.Location.ToVector2(), newSource, color, rotation, newOrigin, newScale,
-                effects, layerDepth);
-            _spriteAlreadyDrawn = false;
-            return false;
+            newOrigin.X += padX / 2.0f;
+            newOrigin.Y += padY;
         }
+
+        _spriteAlreadyDrawn = true;
+        __instance.Draw(texture, destination.Location.ToVector2(), newSource, color, rotation, newOrigin, newScale,
+            effects, layerDepth);
+        _spriteAlreadyDrawn = false;
+        return false;
     }
 
     /// <summary>从 SpritesInDetail 移植和简化的精细渲染逻辑。</summary>
@@ -188,6 +188,7 @@ public class HarmonyPatches
         Rectangle? sourceRectangle, Color color, float rotation, Vector2 origin, Vector2 scale,
         SpriteEffects effects, float layerDepth, ScaleUpData data)
     {
+        Debug.Assert(data.Sprite != null, "data.Sprite != null");
         if (!sourceRectangle.HasValue)
         {
             return true;
@@ -199,20 +200,20 @@ public class HarmonyPatches
         Rectangle updatedSource;
         Vector2 updatedOrigin;
 
-        bool isBreathingSprite = r is { Width: 8, Height: 8 or 4 };
-        if (isBreathingSprite && data.BreathType is not null and not BreathType.None)
+        var isBreathingSprite = r is { Width: 8, Height: 8 or 4 };
+        if (isBreathingSprite && data.Sprite.BreathType is not null and not BreathType.None)
         {
-            var (srcX, srcY, srcW, srcH, adjX, adjY) = data.BreathType switch
+            var (srcX, srcY, srcW, srcH, adjX, adjY) = data.Sprite.BreathType switch
             {
                 BreathType.Male => (
-                    data.ChestSourceX ?? 24, data.ChestSourceY ?? 98,
-                    data.ChestSourceWidth ?? 16, data.ChestSourceHeight ?? 16,
-                    data.ChestAdjustX ?? 0, data.ChestAdjustY ?? 0
+                    data.Sprite.ChestSourceX ?? 24, data.Sprite.ChestSourceY ?? 98,
+                    data.Sprite.ChestSourceWidth ?? 16, data.Sprite.ChestSourceHeight ?? 16,
+                    data.Sprite.ChestAdjustX ?? 0, data.Sprite.ChestAdjustY ?? 0
                 ),
                 BreathType.Female => (
-                    data.ChestSourceX ?? 24, data.ChestSourceY ?? 100,
-                    data.ChestSourceWidth ?? 16, data.ChestSourceHeight ?? 8,
-                    data.ChestAdjustX ?? 0, data.ChestAdjustY ?? -4
+                    data.Sprite.ChestSourceX ?? 24, data.Sprite.ChestSourceY ?? 100,
+                    data.Sprite.ChestSourceWidth ?? 16, data.Sprite.ChestSourceHeight ?? 8,
+                    data.Sprite.ChestAdjustX ?? 0, data.Sprite.ChestAdjustY ?? -4
                 ),
                 _ => default
             };
@@ -239,34 +240,57 @@ public class HarmonyPatches
         {
             const int itemSpriteWidth = 16;
             const int itemSpriteHeight = 24;
-            if (r is { Height: itemSpriteHeight, Width: itemSpriteWidth } or { Width: 16, Height: <32 }) // 32x32 for UIInfoSuite
+            if (r is { Width: itemSpriteWidth, Height: <32 })
             {
-                int width = (int)(itemSpriteWidth * scale.X);
-                int height = (int)(itemSpriteHeight * scale.Y);
-                int sourceX = 12;
-                int sourceY = 58;
-                int sourceWidth = sourceOrgWidth - 2 * sourceX;
-                int sourceHeight = sourceWidth * 24 / 16;
-                int xOff = 
-                    (int)(0.01302 * Math.Pow(sourceX, 3) - 0.34375 * Math.Pow(sourceX, 2) +  5.16667 * sourceX - 15);
-                int yOff = 
-                    (int)(0.0234375 * Math.Pow(sourceX, 3) - 0.778125 * 
-                        Math.Pow(sourceX, 2) + 12.6375 * sourceX - 36.7 - 3 * Math.Exp(-Math.Pow(sourceX - 12, 2) / 2));
+                if (r is { Width:16, Height:15 }) // NPC Map Locations
+                {
+                    scale = new Vector2(2);
+                }
+                var width = (int)(itemSpriteWidth * scale.X);
+                var sourceX = data.Sprite.HeadShotX ?? 12;
+                var sourceY = data.Sprite.HeadShotY ?? 58;
+                var sourceWidth = sourceOrgWidth - 2 * sourceX;
+                var sourceHeight = sourceWidth * 24 / 16;
+                var xOff = (data.Sprite.HeadShotXRenderOffset ?? 0) + (int)(0.01302 * Math.Pow(sourceX, 3) - 0.34375 
+                    * Math.Pow(sourceX, 2) +  5.16667 * sourceX - 15);
+                var yOff = (data.Sprite.HeadShotYRenderOffset ?? 0) + (int)(0.0234375 * Math.Pow(sourceX, 3) - 0.778125 
+                    * Math.Pow(sourceX, 2) + 12.6375 * sourceX - 36.7 - 3 * Math.Exp(-Math.Pow(sourceX - 12, 2) / 2));
+                updatedDestination = new Rectangle(destination.X + xOff, destination.Y + yOff, width, width);
+                var miniMapXOff = data.Sprite.MiniMapXOffset ?? 0;
+                var miniMapYOff = data.Sprite.MiniMapYOffset ?? 0;
+                updatedSource = new Rectangle(14 + miniMapXOff, 70 + miniMapYOff, width, width);
+                updatedOrigin = new Vector2(16, 34);
+                
+                if (r is { Height: itemSpriteHeight, Width: itemSpriteWidth }) // half sprites
+                {
+                    var height = (int)(itemSpriteHeight * scale.Y);
+                    updatedDestination.Height = height;
+                    updatedSource = new Rectangle(sourceX, sourceY, sourceWidth, sourceHeight);
+                    if (origin is { X: 8, Y: 12 })
+                    {
+                        updatedOrigin = new Vector2(32, 55);
+                    }
+                }
+            }
+            else if (r is { Width: itemSpriteWidth, Height: <32 })
+            {
+                var width = (int)(itemSpriteWidth * scale.X);
+                var height = (int)(itemSpriteWidth * scale.Y);
                 updatedDestination = new Rectangle(
-                    destination.X + xOff,
-                    destination.Y + yOff,
+                    destination.X,
+                    destination.Y,
                     width,
                     height
                 );
-                updatedSource = new Rectangle(sourceX, sourceY, sourceWidth, sourceHeight);
-                updatedOrigin = origin is { X: 8, Y: 12 } ? new Vector2(32, 55) : new Vector2(16, 34);
+                updatedSource = new Rectangle(12, 58, width, height);
+                updatedOrigin = new Vector2(16, 34);
             }
             else
             {
                 const int charSpriteWidth = 32;
                 const int charSpriteHeight = 64;
 
-                bool isProfileMenu = Game1.activeClickableMenu is ProfileMenu;
+                var isProfileMenu = Game1.activeClickableMenu is ProfileMenu;
                 var (xOff, yOff) = isProfileMenu ? (32, 112) : (0, 0);
 
                 updatedDestination = new Rectangle(
@@ -278,7 +302,7 @@ public class HarmonyPatches
                 updatedSource = data.GetScaledSource(sourceRectangle, charSpriteWidth / 2, charSpriteHeight / 2,
                                     out _, out _, false, true, isProfileMenu)
                                 ?? new Rectangle(r.X * 4, r.Y * 4, r.Width * 4, r.Height * 4);
-                updatedOrigin = new Vector2(data.SpriteOriginX ?? 32, data.SpriteOriginY ?? 112);
+                updatedOrigin = new Vector2(data.Sprite.SpriteOriginX ?? 32, data.Sprite.SpriteOriginY ?? 112);
             }
         }
 

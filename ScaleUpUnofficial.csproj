@@ -17,4 +17,17 @@
       <PackageReference Include="Pathoschild.Stardew.ModBuildConfig" Version="4.3.2" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Compile Remove="PythonApp\StardewSpriteTokens.build\**" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <EmbeddedResource Remove="PythonApp\StardewSpriteTokens.build\**" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <None Remove="PythonApp\StardewSpriteTokens.build\**" />
+      <None Remove="PythonApp\icon.ico" />
+    </ItemGroup>
+
 </Project>

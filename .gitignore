@@ -6,3 +6,7 @@ riderModule.iml
 /.idea/
 /.vs/
 /ScaleUpUnofficial.sln.DotSettings.user
+/PythonApp/.idea/
+/PythonApp/StardewSpriteTokens.build/
+/PythonApp/StardewSpriteTokens.dist/
+/PythonApp/icon.ico

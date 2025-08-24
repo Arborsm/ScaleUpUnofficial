@@ -4,10 +4,11 @@ using StardewModdingAPI.Events;
 
 namespace ScaleUpUnofficial;
 
+[SuppressMessage("ReSharper", "ClassNeverInstantiated.Global")]
 public sealed class ScaleUpMod : Mod
 {
     public const string ScaleUpdDataAsset = "Platonymous.ScaleUp/Assets";
-    public static Dictionary<string, ScaleUpData> Scales { get; set; } = new();
+    public static Dictionary<string, ScaleUpData>? Scales { get; set; }
     public static Dictionary<string, ScaleUpData?> ScalesByAsset { get; } = new();
     public static ScaleUpMod Singleton { get; private set; } = null!;
     
@@ -52,7 +53,7 @@ public sealed class ScaleUpMod : Mod
     {
         if (e.NamesWithoutLocale.Any(a => a.IsDirectlyUnderPath("Platonymous.ScaleUp")))
         {
-            Scales.Clear();
+            Scales?.Clear();
             ScalesByAsset.Clear();
             HarmonyPatches.ClearCache();
         }
@@ -69,6 +70,7 @@ public sealed class ScaleUpMod : Mod
     /// <summary>检查是否有多个Mod为同一个资源提供了缩放数据，并移除冲突项。</summary>
     private void CheckForDuplicates()
     {
+        if (Scales == null) return;
         foreach (var item in Scales.Values.ToArray())
         {
             if (Scales.Values.Any(v => v != item && v.Asset == item.Asset))
@@ -88,6 +90,7 @@ public sealed class ScaleUpMod : Mod
     /// <summary>更新用于快速查找的字典缓存。</summary>
     private static void UpdateScalesByAssetDictionary()
     {
+        if (Scales == null) return;
         ScalesByAsset.Clear();
         foreach (var scale in Scales.Values)
         {

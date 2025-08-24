@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+// ReSharper disable UnusedMember.Global
 
 namespace ScaleUpUnofficial;
 
@@ -15,23 +16,34 @@ public enum BreathType
 /// <summary>存储单个资源的缩放和渲染配置。</summary>
 [SuppressMessage("ReSharper", "AutoPropertyCanBeMadeGetOnly.Global")]
 [SuppressMessage("ReSharper", "UnusedAutoPropertyAccessor.Global")]
+[SuppressMessage("ReSharper", "ClassNeverInstantiated.Global")]
 public class ScaleUpData
 {
     public string Asset { get; set; } = null!;
     public float Scale { get; set; } = 1;
-    public bool UseSpriteInDetail { get; set; } = false;
-    public int? SpriteOriginX { get; set; }
-    public int? SpriteOriginY { get; set; }
-    public BreathType? BreathType { get; set; }
-    public int? ChestSourceX { get; set; }
-    public int? ChestSourceY { get; set; }
-    public int? ChestSourceWidth { get; set; }
-    public int? ChestSourceHeight { get; set; }
-    public int? ChestAdjustX { get; set; }
-    public int? ChestAdjustY { get; set; }
     public int PaddingWidth { get; set; }
     public int PaddingHeight { get; set; }
     public bool Padded => PaddingWidth + PaddingHeight > 0;
+    
+    public SpriteData? Sprite { get; set; } = null;
+    public class SpriteData
+    {
+        public int? SpriteOriginX { get; set; }
+        public int? SpriteOriginY { get; set; }
+        public BreathType? BreathType { get; set; }
+        public int? ChestSourceX { get; set; }
+        public int? ChestSourceY { get; set; }
+        public int? ChestSourceWidth { get; set; }
+        public int? ChestSourceHeight { get; set; }
+        public int? ChestAdjustX { get; set; }
+        public int? ChestAdjustY { get; set; }
+        public int? HeadShotX { get; set; }
+        public int? HeadShotY { get; set; }
+        public int? HeadShotXRenderOffset { get; set; }
+        public int? HeadShotYRenderOffset { get; set; }
+        public int? MiniMapXOffset { get; set; }
+        public int? MiniMapYOffset { get; set; }
+    }
     
     #region Internal Caching
     private int _width = -1;
@@ -61,7 +73,7 @@ public class ScaleUpData
 
     private void EnsureOrgDimensionsInitialized()
     {
-        float scale = UseSpriteInDetail ? 4 : Scale;
+        var scale = Sprite != null ? 4 : Scale;
         if (_orgDimensionsInitialized) return;
         EnsureDimensionsInitialized();
         _orgHeight = (int)((Height - PaddingHeight) / scale);
@@ -76,20 +88,21 @@ public class ScaleUpData
         padx = 0; pady = 0;
         if (source.HasValue)
         {
-            float scale = useSpriteInDetail ? 4 : Scale;
-            int tilesX = OrgWidth / originalWidth;
-            int tilesY = OrgHeight / originalHeight;
-            int x = source.Value.X / originalWidth;
+            var scale = useSpriteInDetail ? 4 : Scale;
+            var tilesX = OrgWidth / originalWidth;
+            var tilesY = OrgHeight / originalHeight;
+            var x = source.Value.X / originalWidth;
             if (!cycle)
                 x %= tilesX;
-            int y = source.Value.Y / originalHeight;
+            var y = source.Value.Y / originalHeight;
             padx = (int)(PaddingWidth / (float)tilesX);
             pady = (int)(PaddingHeight / (float)tilesY);
             var tileWidth = originalWidth * scale + padx;
             var tileHeight = originalHeight * scale + pady;
             return GetSourceRectForStandardTileSheet(Width, y * tilesX + x, (int)tileWidth, (int)tileHeight);
         }
-        else if (force)
+
+        if (force)
             return new Rectangle(0, 0, Width, Height);
         return null;
     }
@@ -97,11 +110,11 @@ public class ScaleUpData
     private static Rectangle GetSourceRectForStandardTileSheet(int texWidth, int tilePosition, int width, int height)
     {
         if (width <= 0 || height <= 0) return Rectangle.Empty;
-        int tilesPerRow = texWidth / width;
-        int row = tilePosition / tilesPerRow;
-        int column = tilePosition % tilesPerRow;
-        int x = column * width;
-        int y = row * height;
+        var tilesPerRow = texWidth / width;
+        var row = tilePosition / tilesPerRow;
+        var column = tilePosition % tilesPerRow;
+        var x = column * width;
+        var y = row * height;
         return new Rectangle(x, y, width, height);
     }
 }
