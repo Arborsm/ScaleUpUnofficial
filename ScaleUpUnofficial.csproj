@@ -21,12 +21,14 @@
       <Compile Remove="PythonApp\StardewSpriteTokens.build\**" />
       <Compile Remove="PythonApp\StardewSpriteTokens.onefile-build\**" />
       <Compile Remove="PythonApp\StardewSpriteTokens.dist\**" />
+      <Compile Remove="PythonApp\StardewSpriteTokens\**" />
     </ItemGroup>
 
     <ItemGroup>
       <EmbeddedResource Remove="PythonApp\StardewSpriteTokens.build\**" />
       <EmbeddedResource Remove="PythonApp\StardewSpriteTokens.onefile-build\**" />
       <EmbeddedResource Remove="PythonApp\StardewSpriteTokens.dist\**" />
+      <EmbeddedResource Remove="PythonApp\StardewSpriteTokens\**" />
     </ItemGroup>
 
     <ItemGroup>
@@ -35,6 +37,7 @@
       <None Remove="PythonApp\StardewSpriteTokens.onefile-build\**" />
       <None Remove="PythonApp\StardewSpriteTokens.dist\**" />
       <None Remove="PythonApp\StardewSpriteTokens.exe" />
+      <None Remove="PythonApp\StardewSpriteTokens\**" />
     </ItemGroup>
 
 </Project>
