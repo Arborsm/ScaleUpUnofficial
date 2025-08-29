@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter/services.dart';
 
-import '../providers/sprite_provider.dart';
-import '../models/sprite_data.dart';
-import '../constants/app_constants.dart';
+import '../../providers/sprite_provider.dart';
+import '../../models/sprite_data.dart';
+import '../../constants/app_constants.dart';
 
 /// 参数面板组件，用于显示和编辑精灵数据参数
 class ParameterPanel extends StatefulWidget {
@@ -23,6 +24,10 @@ class _ParameterPanelState extends State<ParameterPanel> {
       TextEditingController();
   final TextEditingController _chestSourceHeightController =
       TextEditingController();
+  final TextEditingController _miniMapXOffsetController =
+      TextEditingController();
+  final TextEditingController _miniMapYOffsetController =
+      TextEditingController();
 
   @override
   void initState() {
@@ -39,12 +44,14 @@ class _ParameterPanelState extends State<ParameterPanel> {
     _chestSourceYController.dispose();
     _chestSourceWidthController.dispose();
     _chestSourceHeightController.dispose();
+    _miniMapXOffsetController.dispose();
+    _miniMapYOffsetController.dispose();
     super.dispose();
   }
 
   /// 初始化文本控制器，设置初始值
   void _initializeControllers() {
-    final spriteProvider = Provider.of<SpriteProvider>(context, listen: false);
+    final spriteProvider = context.read<SpriteProvider>();
     final spriteData = spriteProvider.spriteData;
 
     _headShotXController.text = (spriteData.headShotX ?? 0).toString();
@@ -57,6 +64,10 @@ class _ParameterPanelState extends State<ParameterPanel> {
         (spriteData.chestSourceWidth ?? 0).toString();
     _chestSourceHeightController.text =
         (spriteData.chestSourceHeight ?? 0).toString();
+    _miniMapXOffsetController.text =
+        (spriteData.miniMapXOffset ?? 0).toString();
+    _miniMapYOffsetController.text =
+        (spriteData.miniMapYOffset ?? 0).toString();
   }
 
   /// 将呼吸类型数字转换为显示字符串
@@ -82,17 +93,25 @@ class _ParameterPanelState extends State<ParameterPanel> {
 
   @override
   Widget build(BuildContext context) {
-    final spriteProvider = Provider.of<SpriteProvider>(context);
+    final spriteProvider = context.watch<SpriteProvider>();
 
     final spriteData = spriteProvider.spriteData;
     final currentHeadShotX = spriteData.headShotX ?? 0;
     final currentHeadShotY = spriteData.headShotY ?? 0;
+    final currentMiniMapXOffset = spriteData.miniMapXOffset ?? 0;
+    final currentMiniMapYOffset = spriteData.miniMapYOffset ?? 0;
 
     if (int.tryParse(_headShotXController.text) != currentHeadShotX) {
       _headShotXController.text = currentHeadShotX.toString();
     }
     if (int.tryParse(_headShotYController.text) != currentHeadShotY) {
       _headShotYController.text = currentHeadShotY.toString();
+    }
+    if (int.tryParse(_miniMapXOffsetController.text) != currentMiniMapXOffset) {
+      _miniMapXOffsetController.text = currentMiniMapXOffset.toString();
+    }
+    if (int.tryParse(_miniMapYOffsetController.text) != currentMiniMapYOffset) {
+      _miniMapYOffsetController.text = currentMiniMapYOffset.toString();
     }
 
     return Card(
@@ -109,28 +128,34 @@ class _ParameterPanelState extends State<ParameterPanel> {
               _buildParameterField(
                 label: 'HeadShot X',
                 controller: _headShotXController,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                 onChanged: (value) {
-                  final intValue = int.tryParse(value);
-                  if (intValue != null) {
-                    final updatedData = spriteProvider.spriteData.copyWith(
-                      headShotX: intValue,
-                    );
-                    spriteProvider.updateSpriteData(updatedData);
-                  }
+                  int intValue = int.tryParse(value) ?? 0;
+                  intValue = intValue.clamp(0, AppConstants.sliceWidth);
+                  _headShotXController.text = intValue.toString();
+                  _headShotXController.selection = TextSelection.fromPosition(
+                      TextPosition(offset: _headShotXController.text.length));
+                  final updatedData = spriteProvider.spriteData.copyWith(
+                    headShotX: intValue,
+                  );
+                  spriteProvider.updateSpriteData(updatedData);
                 },
               ),
               const SizedBox(height: 8),
               _buildParameterField(
                 label: 'HeadShot Y',
                 controller: _headShotYController,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                 onChanged: (value) {
-                  final intValue = int.tryParse(value);
-                  if (intValue != null) {
-                    final updatedData = spriteProvider.spriteData.copyWith(
-                      headShotY: intValue,
-                    );
-                    spriteProvider.updateSpriteData(updatedData);
-                  }
+                  int intValue = int.tryParse(value) ?? 0;
+                  intValue = intValue.clamp(0, AppConstants.sliceHeight);
+                  _headShotYController.text = intValue.toString();
+                  _headShotYController.selection = TextSelection.fromPosition(
+                      TextPosition(offset: _headShotYController.text.length));
+                  final updatedData = spriteProvider.spriteData.copyWith(
+                    headShotY: intValue,
+                  );
+                  spriteProvider.updateSpriteData(updatedData);
                 },
               ),
 
@@ -224,6 +249,48 @@ class _ParameterPanelState extends State<ParameterPanel> {
 
               const SizedBox(height: 16),
 
+              // MiniMap Offset Section
+              _buildSectionHeader('MiniMap Offset'),
+              _buildParameterField(
+                label: 'MiniMap X Offset',
+                controller: _miniMapXOffsetController,
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'^-?\d*'))
+                ],
+                onChanged: (value) {
+                  int intValue = int.tryParse(value) ?? 0;
+                  _miniMapXOffsetController.text = intValue.toString();
+                  _miniMapXOffsetController.selection =
+                      TextSelection.fromPosition(TextPosition(
+                          offset: _miniMapXOffsetController.text.length));
+                  final updatedData = spriteProvider.spriteData.copyWith(
+                    miniMapXOffset: intValue,
+                  );
+                  spriteProvider.updateSpriteData(updatedData);
+                },
+              ),
+              const SizedBox(height: 8),
+              _buildParameterField(
+                label: 'MiniMap Y Offset',
+                controller: _miniMapYOffsetController,
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'^-?\d*'))
+                ],
+                onChanged: (value) {
+                  int intValue = int.tryParse(value) ?? 0;
+                  _miniMapYOffsetController.text = intValue.toString();
+                  _miniMapYOffsetController.selection =
+                      TextSelection.fromPosition(TextPosition(
+                          offset: _miniMapYOffsetController.text.length));
+                  final updatedData = spriteProvider.spriteData.copyWith(
+                    miniMapYOffset: intValue,
+                  );
+                  spriteProvider.updateSpriteData(updatedData);
+                },
+              ),
+
+              const SizedBox(height: 16),
+
               // Display Options
               _buildSectionHeader('Display Options'),
               _buildSwitchField(
@@ -260,6 +327,10 @@ class _ParameterPanelState extends State<ParameterPanel> {
         (spriteData.chestSourceWidth ?? 0).toString();
     _chestSourceHeightController.text =
         (spriteData.chestSourceHeight ?? 0).toString();
+    _miniMapXOffsetController.text =
+        (spriteData.miniMapXOffset ?? 0).toString();
+    _miniMapYOffsetController.text =
+        (spriteData.miniMapYOffset ?? 0).toString();
   }
 
   Widget _buildSectionHeader(String title) {
@@ -280,6 +351,8 @@ class _ParameterPanelState extends State<ParameterPanel> {
     required String label,
     required TextEditingController controller,
     required Function(String) onChanged,
+    TextInputType keyboardType = TextInputType.number,
+    List<TextInputFormatter>? inputFormatters,
   }) {
     return Row(
       children: [
@@ -295,6 +368,8 @@ class _ParameterPanelState extends State<ParameterPanel> {
           flex: 3,
           child: TextField(
             controller: controller,
+            keyboardType: keyboardType,
+            inputFormatters: inputFormatters,
             decoration: const InputDecoration(
               isDense: true,
               contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),

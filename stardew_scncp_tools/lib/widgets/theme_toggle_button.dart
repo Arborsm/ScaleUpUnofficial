@@ -15,7 +15,7 @@ class _ThemeToggleButtonState extends State<ThemeToggleButton> {
 
   @override
   Widget build(BuildContext context) {
-    final themeProvider = Provider.of<ThemeProvider>(context);
+    final themeProvider = context.watch<ThemeProvider>();
 
     final Color backgroundColor = _isHovered
         ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1)

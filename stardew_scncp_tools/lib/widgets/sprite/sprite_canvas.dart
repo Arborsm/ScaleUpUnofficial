@@ -3,7 +3,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
-import '../providers/sprite_provider.dart';
+import '../../providers/sprite_provider.dart';
 
 class MoveUpIntent extends Intent {}
 
@@ -50,7 +50,7 @@ class _SpriteCanvasState extends State<SpriteCanvas> {
 
   @override
   Widget build(BuildContext context) {
-    final spriteProvider = Provider.of<SpriteProvider>(context);
+    final spriteProvider = context.watch<SpriteProvider>();
 
     return Shortcuts(
       shortcuts: <ShortcutActivator, Intent>{
@@ -169,7 +169,7 @@ class _SpriteCanvasState extends State<SpriteCanvas> {
 
   /// 处理垂直拖拽开始事件
   void _handleVerticalDragStart(DragStartDetails details) {
-    final spriteProvider = Provider.of<SpriteProvider>(context, listen: false);
+    final spriteProvider = context.read<SpriteProvider>();
     if (!spriteProvider.hasSprites) return;
 
     _isVerticalDragging = true;
@@ -178,7 +178,7 @@ class _SpriteCanvasState extends State<SpriteCanvas> {
 
   /// 处理垂直拖拽更新事件，将鼠标移动转换为画板坐标增量
   void _handleVerticalDragUpdate(DragUpdateDetails details) {
-    final spriteProvider = Provider.of<SpriteProvider>(context, listen: false);
+    final spriteProvider = context.read<SpriteProvider>();
     if (!spriteProvider.hasSprites || !_isVerticalDragging) return;
 
     final mouseDeltaY = details.delta.dy;
@@ -197,7 +197,7 @@ class _SpriteCanvasState extends State<SpriteCanvas> {
 
   /// 处理垂直拖拽结束事件
   void _handleVerticalDragEnd(DragEndDetails details) {
-    final spriteProvider = Provider.of<SpriteProvider>(context, listen: false);
+    final spriteProvider = context.read<SpriteProvider>();
     if (!spriteProvider.hasSprites) return;
 
     setState(() {
@@ -223,7 +223,7 @@ class _SpriteCanvasState extends State<SpriteCanvas> {
 
   /// 处理方向键 Intent
   void _handleDirectionKey(String direction) {
-    final spriteProvider = Provider.of<SpriteProvider>(context, listen: false);
+    final spriteProvider = context.read<SpriteProvider>();
     if (!spriteProvider.hasSprites) return;
 
     final currentHeadshotX = spriteProvider.spriteData.headShotX ?? 0;
@@ -258,7 +258,7 @@ class _SpriteCanvasState extends State<SpriteCanvas> {
 
   /// 处理原始键盘事件，支持方向键控制和长按
   void _handleRawKeyEvent(KeyEvent event) {
-    final spriteProvider = Provider.of<SpriteProvider>(context, listen: false);
+    final spriteProvider = context.read<SpriteProvider>();
     if (!spriteProvider.hasSprites) return;
 
     final currentHeadshotX = spriteProvider.spriteData.headShotX ?? 0;

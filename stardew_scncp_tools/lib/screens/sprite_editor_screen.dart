@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/services.dart';
-import '../widgets/sprite_canvas.dart';
-import '../widgets/parameter_panel.dart';
-import '../widgets/preview_panels.dart';
-import '../widgets/control_panel.dart';
+import '../widgets/sprite/sprite_canvas.dart';
+import '../widgets/sprite/parameter_panel.dart';
+import '../widgets/sprite/preview_panels.dart';
+import '../widgets/sprite/control_panel.dart';
 import '../providers/sprite_provider.dart';
 
 /// 精灵编辑器主屏幕，包含画布、参数面板和预览面板
@@ -95,7 +95,7 @@ class _SpriteEditorScreenState extends State<SpriteEditorScreen> {
   void _handleKeyEvent(KeyEvent event) {
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) return;
 
-    final spriteProvider = Provider.of<SpriteProvider>(context, listen: false);
+    final spriteProvider = context.read<SpriteProvider>();
     if (!spriteProvider.hasSprites) return;
 
     final currentHeadshotX = spriteProvider.spriteData.headShotX ?? 0;

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/gestures.dart';
-import 'package:provider/provider.dart';
+import 'dart:convert';
 
-import '../providers/sprite_provider.dart';
-import '../services/json_export_service.dart';
+import '../../models/condition_data.dart';
+import '../../models/sprite_data.dart';
 
 class JsonHighlighter {
   // 层级颜色 - 使用渐进的颜色变化来区分嵌套层级
@@ -136,7 +136,16 @@ class JsonHighlighter {
 }
 
 class JsonPreview extends StatefulWidget {
-  const JsonPreview({super.key});
+  final List<Map<String, dynamic>>? entries;
+  final SpriteData? spriteData;
+  final String characterName;
+
+  const JsonPreview({
+    super.key,
+    this.entries,
+    this.spriteData,
+    required this.characterName,
+  });
 
   @override
   State<JsonPreview> createState() => _JsonPreviewState();
@@ -148,26 +157,23 @@ class _JsonPreviewState extends State<JsonPreview> {
   double _fontSize = 16.0; // 增大默认字体大小
   final double _minFontSize = 10.0;
   final double _maxFontSize = 24.0;
-  SpriteProvider? _spriteProvider;
-
-  void _onProviderChanged() {
-    _updateJsonPreview();
-  }
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _spriteProvider = Provider.of<SpriteProvider>(context, listen: false);
-      _spriteProvider?.addListener(_onProviderChanged);
       _updateJsonPreview();
     });
   }
 
   @override
-  void dispose() {
-    _spriteProvider?.removeListener(_onProviderChanged);
-    super.dispose();
+  void didUpdateWidget(JsonPreview oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // 当 entries 参数发生变化时，更新 JSON 预览
+    if (oldWidget.entries != widget.entries ||
+        oldWidget.spriteData != widget.spriteData) {
+      _updateJsonPreview();
+    }
   }
 
   Future<void> _updateJsonPreview() async {
@@ -176,11 +182,15 @@ class _JsonPreviewState extends State<JsonPreview> {
     setState(() => _isLoading = true);
 
     try {
-      final spriteProvider =
-          Provider.of<SpriteProvider>(context, listen: false);
-      final jsonData =
-          JsonExportService.generateContentPatcherJson(spriteProvider);
-      final newJsonText = JsonExportService.formatJsonString(jsonData);
+      String newJsonText;
+
+      if (widget.entries != null && widget.entries!.isNotEmpty) {
+        // 使用传入的 entries 参数生成 JSON
+        newJsonText = _getJsonText();
+      } else {
+        // 如果没有 entries，则显示空状态
+        newJsonText = '{}';
+      }
 
       if (mounted) {
         setState(() => _jsonText = newJsonText);
@@ -250,6 +260,179 @@ class _JsonPreviewState extends State<JsonPreview> {
         }
       }
     }
+  }
+
+  String _getJsonText() {
+    if (widget.entries == null || widget.entries!.isEmpty) {
+      return '';
+    }
+
+    // Generate JSON based on entries
+    final Map<String, dynamic> jsonData = {
+      "Format": "2.0.0",
+      "Changes": _generateChanges(),
+    };
+
+    return JsonEncoder.withIndent('  ').convert(jsonData);
+  }
+
+  List<Map<String, dynamic>> _generateChanges() {
+    if (widget.entries == null) return [];
+
+    final List<Map<String, dynamic>> changes = [];
+
+    // Add Load action for all assets
+    final allAssets = <String>{};
+
+    // 只有当用户没有配置任何条件时，才添加基础资源
+    final hasAnyConditions = widget.entries!.any((entry) {
+      final presets = entry['presets'] as List<dynamic>?;
+      return presets != null && presets.isNotEmpty;
+    });
+
+    if (!hasAnyConditions) {
+      // 检查用户是否选择了基础类型
+      final hasCharacterType = widget.entries!
+          .any((entry) => entry['characterType']?.toString() == 'character');
+      final hasPortraitType = widget.entries!
+          .any((entry) => entry['portraitType']?.toString() == 'portrait');
+
+      if (hasCharacterType) {
+        allAssets.add('Characters/${widget.characterName}');
+      }
+      if (hasPortraitType) {
+        allAssets.add('Portraits/${widget.characterName}');
+      }
+    } else {
+      // 添加扩展资源（有条件的预设）
+      for (final entry in widget.entries!) {
+        final presets = entry['presets'] as List<dynamic>?;
+        if (presets != null && presets.isNotEmpty) {
+          final presetName = presets.first.toString();
+          final characterType = entry['characterType']?.toString() ?? '';
+          final portraitType = entry['portraitType']?.toString() ?? '';
+
+          // 只有当明确选择了character类型时才添加角色精灵资源
+          if (characterType == 'character') {
+            allAssets.add('Characters/${widget.characterName}_$presetName');
+          }
+
+          // 只有当明确选择了portrait类型时才添加肖像资源
+          if (portraitType == 'portrait') {
+            allAssets.add('Portraits/${widget.characterName}_$presetName');
+          }
+        }
+      }
+    }
+
+    if (allAssets.isNotEmpty) {
+      changes.add({
+        "LogName": "Load ${widget.characterName}'s Outfits",
+        "Action": "Load",
+        "Priority": "High",
+        "Target": allAssets.join(', '),
+        "FromFile":
+            "{{TargetPathOnly}}/${widget.characterName}/{{TargetWithoutPath}}.png"
+      });
+    }
+
+    // Add EditData for Assets with split entries
+    final assetEntries = <String, Map<String, dynamic>>{};
+
+    // Split character assets
+    final charAssets = <String>[];
+    final portAssets = <String>[];
+
+    for (final asset in allAssets) {
+      if (asset.startsWith('Characters/')) {
+        charAssets.add(asset);
+      } else if (asset.startsWith('Portraits/')) {
+        portAssets.add(asset);
+      }
+    }
+
+    // Create separate entries for each character asset
+    for (final asset in charAssets) {
+      final assetSuffix = asset == 'Characters/${widget.characterName}'
+          ? ''
+          : asset.substring('Characters/${widget.characterName}'.length);
+      final entryKey = assetSuffix.isEmpty
+          ? 'Playtonymous.${widget.characterName}'
+          : 'Playtonymous.${widget.characterName}$assetSuffix';
+
+      assetEntries[entryKey] = {
+        'Asset': asset,
+        'Sprite': widget.spriteData?.toJson() ?? {},
+      };
+    }
+
+    // Create separate entries for each portrait asset
+    for (final asset in portAssets) {
+      final assetSuffix = asset == 'Portraits/${widget.characterName}'
+          ? ''
+          : asset.substring('Portraits/${widget.characterName}'.length);
+      final entryKey = assetSuffix.isEmpty
+          ? 'Playtonymous.ScaleUp${widget.characterName}'
+          : 'Playtonymous.ScaleUp${widget.characterName}$assetSuffix';
+
+      assetEntries[entryKey] = {
+        'Asset': asset,
+        'Scale': 4,
+      };
+    }
+
+    changes.add({
+      "Action": "EditData",
+      "Target": "{{Platonymous.ScaleUp/Assets}}",
+      "Entries": assetEntries,
+    });
+
+    // Add EditData for Characters
+    final characterEntries = <String, Map<String, dynamic>>{};
+    for (final entry in widget.entries!) {
+      final presets = entry['presets'] as List<dynamic>?;
+      if (presets != null && presets.isNotEmpty) {
+        final presetName = presets.first.toString();
+        final characterType = entry['characterType']?.toString() ?? '';
+        final portraitType = entry['portraitType']?.toString() ?? '';
+        final conditionText = entry['conditionText']?.toString() ?? '';
+        final precedence = entry['precedence']?.toString() ?? '-1200';
+        final weight = entry['weight']?.toString() ?? '1';
+        final isIslandAttire = entry['isIslandAttire'] == true;
+
+        // 创建条目，同时包含Character和Portrait类型
+        final entryId = "{{ModId}}.${widget.characterName}$presetName";
+
+        // 获取条件数据
+        final conditionData = entry['conditionData'] as ConditionData;
+        final isIndoors = conditionData.isIndoors;
+        final isOutdoors = conditionData.isOutdoors;
+
+        characterEntries[entryId] = {
+          "Id": entryId,
+          "Precedence": precedence,
+          if (weight != '1') "Weight": int.tryParse(weight) ?? 1,
+          if (isIslandAttire) "IsIslandAttire": true,
+          if (conditionText.isNotEmpty) "Condition": conditionText,
+          "Indoors": isIndoors,
+          "Outdoors": isOutdoors,
+          if (characterType == 'character')
+            "Sprite": "Characters/${widget.characterName}_$presetName",
+          if (portraitType == 'portrait')
+            "Portrait": "Portraits/${widget.characterName}_$presetName",
+        };
+      }
+    }
+
+    changes.add({
+      "LogName": "Haley Appearance Data",
+      "Action": "EditData",
+      "Target": "Data/Characters",
+      "TargetField": ["Haley", "Appearance"],
+      "Entries": characterEntries,
+    });
+
+    return changes;
   }
 
   @override
@@ -350,7 +533,7 @@ class _JsonPreviewState extends State<JsonPreview> {
               color: Theme.of(context).brightness == Brightness.dark
                   ? const Color(0xFF1E1E1E)
                   : const Color(0xFFF8F8F8),
-              child: _jsonText.isEmpty
+              child: _getJsonText().isEmpty
                   ? Center(
                       child: Column(
                         mainAxisSize: MainAxisSize.min,

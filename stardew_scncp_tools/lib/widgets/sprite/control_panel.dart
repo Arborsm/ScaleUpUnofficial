@@ -2,15 +2,26 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
-import '../providers/sprite_provider.dart';
-import '../services/json_export_service.dart';
+import '../../providers/sprite_provider.dart';
+import '../../services/json_export_service.dart';
 
 class ControlPanel extends StatelessWidget {
   const ControlPanel({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final spriteProvider = Provider.of<SpriteProvider>(context);
+    // 使用 context.select 只监听需要的属性，提高性能
+    final hasSprites =
+        context.select<SpriteProvider, bool>((provider) => provider.hasSprites);
+    final sliceCount = context
+        .select<SpriteProvider, int>((provider) => provider.slices.length);
+    final currentSliceIndex = context
+        .select<SpriteProvider, int>((provider) => provider.currentSliceIndex);
+    final isLoading =
+        context.select<SpriteProvider, bool>((provider) => provider.isLoading);
+
+    // 对于需要调用方法的操作，使用 context.read
+    final spriteProvider = context.read<SpriteProvider>();
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -30,13 +41,13 @@ class ControlPanel extends StatelessWidget {
           const SizedBox(width: 16),
 
           // Slice Selector (only show if sprites are loaded)
-          if (spriteProvider.hasSprites) ...[
+          if (hasSprites) ...[
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8),
               child: DropdownButton<int>(
-                value: spriteProvider.currentSliceIndex,
+                value: currentSliceIndex,
                 items: List.generate(
-                  spriteProvider.slices.length,
+                  sliceCount,
                   (index) => DropdownMenuItem(
                     value: index,
                     child: Text('Slice ${index + 1}'),
@@ -56,7 +67,7 @@ class ControlPanel extends StatelessWidget {
 
           // Copy JSON Button
           ElevatedButton.icon(
-            onPressed: spriteProvider.hasSprites
+            onPressed: hasSprites
                 ? () => _copyJsonToClipboard(context, spriteProvider)
                 : null,
             icon: const Icon(Icons.copy),
@@ -69,7 +80,7 @@ class ControlPanel extends StatelessWidget {
           const Spacer(),
 
           // Status information
-          if (spriteProvider.isLoading)
+          if (isLoading)
             Row(
               children: [
                 SizedBox(
@@ -89,9 +100,9 @@ class ControlPanel extends StatelessWidget {
                 ),
               ],
             )
-          else if (spriteProvider.hasSprites)
+          else if (hasSprites)
             Text(
-              '${spriteProvider.slices.length} slice(s) loaded',
+              '$sliceCount slice(s) loaded',
               style: Theme.of(context).textTheme.bodyMedium,
             )
           else

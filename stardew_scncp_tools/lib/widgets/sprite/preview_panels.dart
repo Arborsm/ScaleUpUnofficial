@@ -2,14 +2,14 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../providers/sprite_provider.dart';
+import '../../providers/sprite_provider.dart';
 
 class PreviewPanels extends StatelessWidget {
   const PreviewPanels({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final spriteProvider = Provider.of<SpriteProvider>(context);
+    final spriteProvider = context.watch<SpriteProvider>();
 
     return Column(
       children: [

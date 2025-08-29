@@ -12,5 +12,6 @@ Global
 		{AC0CAEAF-20EA-41D3-932F-8C3B1CAA8116}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{AC0CAEAF-20EA-41D3-932F-8C3B1CAA8116}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{AC0CAEAF-20EA-41D3-932F-8C3B1CAA8116}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AC0CAEAF-20EA-41D3-932F-8C3B1CAA8116}.Release|Any CPU.Deploy.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

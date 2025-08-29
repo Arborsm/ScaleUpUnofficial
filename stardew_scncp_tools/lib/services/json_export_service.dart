@@ -96,15 +96,31 @@ class JsonExportService {
         }
       }
 
-      entries['Playtonymous.$characterName'] = {
-        'Asset': charAssets.join(', '),
-        'Sprite': generateSpriteJson(spriteProvider)['Sprite'],
-      };
+      // 为每个角色精灵资源创建独立的条目
+      for (final asset in charAssets) {
+        final assetSuffix = asset.substring('Characters/$characterName'.length);
+        final entryKey = assetSuffix.isEmpty
+            ? 'Playtonymous.$characterName'
+            : 'Playtonymous.$characterName$assetSuffix';
 
-      entries['Playtonymous.ScaleUp$characterName'] = {
-        'Asset': portAssets.join(', '),
-        'Scale': spriteProvider.cpScale,
-      };
+        entries[entryKey] = {
+          'Asset': asset,
+          'Sprite': generateSpriteJson(spriteProvider)['Sprite'],
+        };
+      }
+
+      // 为每个资源创建独立的条目
+      for (final asset in portAssets) {
+        final assetSuffix = asset.substring('Portraits/$characterName'.length);
+        final entryKey = assetSuffix.isEmpty
+            ? 'Playtonymous.ScaleUp$characterName'
+            : 'Playtonymous.ScaleUp$characterName$assetSuffix';
+
+        entries[entryKey] = {
+          'Asset': asset,
+          'Scale': spriteProvider.cpScale,
+        };
+      }
 
       changes.add({
         'Action': 'EditData',
