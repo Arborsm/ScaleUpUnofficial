@@ -83,12 +83,11 @@ public class ScaleUpData
     #endregion
         
     /// <summary>计算缩放模式下的源矩形。</summary>
-    public Rectangle? GetScaledSource(Rectangle? source, int originalWidth, int originalHeight, out int padx, out int pady, bool force = false, bool useSpriteInDetail = false, bool cycle = false)
+    public Rectangle? GetScaledSource(Rectangle? source, int originalWidth, int originalHeight, out int padx, out int pady, bool force = false, bool cycle = false)
     {
         padx = 0; pady = 0;
         if (source.HasValue)
         {
-            var scale = useSpriteInDetail ? 4 : Scale;
             var tilesX = OrgWidth / originalWidth;
             var tilesY = OrgHeight / originalHeight;
             var x = source.Value.X / originalWidth;
@@ -97,8 +96,8 @@ public class ScaleUpData
             var y = source.Value.Y / originalHeight;
             padx = (int)(PaddingWidth / (float)tilesX);
             pady = (int)(PaddingHeight / (float)tilesY);
-            var tileWidth = originalWidth * scale + padx;
-            var tileHeight = originalHeight * scale + pady;
+            var tileWidth = originalWidth * Scale + padx;
+            var tileHeight = originalHeight * Scale + pady;
             return GetSourceRectForStandardTileSheet(Width, y * tilesX + x, (int)tileWidth, (int)tileHeight);
         }
 
@@ -116,5 +115,27 @@ public class ScaleUpData
         var x = column * width;
         var y = row * height;
         return new Rectangle(x, y, width, height);
+    }
+}
+
+internal class ReplacedTexture : Texture2D
+{
+    private ReplacedTexture(Texture2D texture, int width, int height)
+        : base(texture.GraphicsDevice, 1, 1)
+    {
+        CopyFromTexture(texture);
+        SetImageSize(width, height);
+    }
+    
+    public static Texture2D Create(Texture2D texture)
+    {
+        var width = texture.Width;
+        var height = texture.Height;
+        if (width > 64)
+        {
+            width /= 4;
+            height /= 4;
+        }
+        return new ReplacedTexture(texture, width, height);
     }
 }

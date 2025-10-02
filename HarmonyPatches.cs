@@ -4,7 +4,6 @@ using HarmonyLib;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using StardewValley;
-using System.Reflection;
 using StardewValley.Menus;
 
 namespace ScaleUpUnofficial;
@@ -19,12 +18,74 @@ public class HarmonyPatches
     public static void PatchAll()
     {
         var harmonyInstance = new Harmony("Arborsm.ScaleUp");
-        typeof(SpriteBatch)
-            .GetMethods(BindingFlags.Public | BindingFlags.Instance)
-            .Where(method => method.Name == "Draw")
-            .Foreach(method =>
-                harmonyInstance.Patch(method, prefix: new HarmonyMethod(typeof(HarmonyPatches), nameof(DrawPrefix))));
+        var spriteBatchType = typeof(SpriteBatch);
 
+        // Draw(Texture2D texture, Vector2 position, Rectangle? sourceRectangle, Color color, float rotation, Vector2 origin, Vector2 scale, SpriteEffects effects, float layerDepth)
+        harmonyInstance.Patch(
+            AccessTools.Method(spriteBatchType, "Draw", new[]
+            {
+                typeof(Texture2D), typeof(Vector2), typeof(Rectangle?), typeof(Color),
+                typeof(float), typeof(Vector2), typeof(Vector2), typeof(SpriteEffects), typeof(float)
+            }),
+            prefix: new HarmonyMethod(typeof(HarmonyPatches), nameof(DrawWithVector2Scale))
+        );
+
+        // Draw(Texture2D texture, Vector2 position, Rectangle? sourceRectangle, Color color, float rotation, Vector2 origin, float scale, SpriteEffects effects, float layerDepth)
+        harmonyInstance.Patch(
+            AccessTools.Method(spriteBatchType, "Draw", new[]
+            {
+                typeof(Texture2D), typeof(Vector2), typeof(Rectangle?), typeof(Color),
+                typeof(float), typeof(Vector2), typeof(float), typeof(SpriteEffects), typeof(float)
+            }),
+            prefix: new HarmonyMethod(typeof(HarmonyPatches), nameof(DrawWithFloatScale))
+        );
+
+        // Draw(Texture2D texture, Rectangle destinationRectangle, Rectangle? sourceRectangle, Color color, float rotation, Vector2 origin, SpriteEffects effects, float layerDepth)
+        harmonyInstance.Patch(
+            AccessTools.Method(spriteBatchType, "Draw", new[]
+            {
+                typeof(Texture2D), typeof(Rectangle), typeof(Rectangle?), typeof(Color),
+                typeof(float), typeof(Vector2), typeof(SpriteEffects), typeof(float)
+            }),
+            prefix: new HarmonyMethod(typeof(HarmonyPatches), nameof(DrawWithRectangle))
+        );
+
+        // Draw(Texture2D texture, Vector2 position, Rectangle? sourceRectangle, Color color)
+        harmonyInstance.Patch(
+            AccessTools.Method(spriteBatchType, "Draw", new[]
+            {
+                typeof(Texture2D), typeof(Vector2), typeof(Rectangle?), typeof(Color)
+            }),
+            prefix: new HarmonyMethod(typeof(HarmonyPatches), nameof(DrawSimpleWithSource))
+        );
+
+        // Draw(Texture2D texture, Rectangle destinationRectangle, Rectangle? sourceRectangle, Color color)
+        harmonyInstance.Patch(
+            AccessTools.Method(spriteBatchType, "Draw", new[]
+            {
+                typeof(Texture2D), typeof(Rectangle), typeof(Rectangle?), typeof(Color)
+            }),
+            prefix: new HarmonyMethod(typeof(HarmonyPatches), nameof(DrawRectangleWithSource))
+        );
+
+        // Draw(Texture2D texture, Vector2 position, Color color)
+        harmonyInstance.Patch(
+            AccessTools.Method(spriteBatchType, "Draw", new[]
+            {
+                typeof(Texture2D), typeof(Vector2), typeof(Color)
+            }),
+            prefix: new HarmonyMethod(typeof(HarmonyPatches), nameof(DrawSimple))
+        );
+
+        // Draw(Texture2D texture, Rectangle destinationRectangle, Color color)
+        harmonyInstance.Patch(
+            AccessTools.Method(spriteBatchType, "Draw", new[]
+            {
+                typeof(Texture2D), typeof(Rectangle), typeof(Color)
+            }),
+            prefix: new HarmonyMethod(typeof(HarmonyPatches), nameof(DrawRectangle))
+        );
+        
         harmonyInstance.Patch(AccessTools.Method(typeof(Game1), nameof(Game1.getSourceRectForStandardTileSheet)),
             prefix: new HarmonyMethod(typeof(HarmonyPatches), nameof(GetSourceRectForStandardTileSheet)));
         harmonyInstance.Patch(
@@ -33,62 +94,139 @@ public class HarmonyPatches
         harmonyInstance.Patch(AccessTools.Method(typeof(Game1), nameof(Game1.getArbitrarySourceRect)),
             prefix: new HarmonyMethod(typeof(HarmonyPatches), nameof(GetArbitrarySourceRect)));
     }
-
-
-    /// <summary>
-    /// 一个通用的前缀补丁，用于拦截所有 SpriteBatch.Draw 的重载方法。
-    /// </summary>
-    /// <param name="__instance">SpriteBatch 实例。</param>
-    /// <param name="__originalMethod">被拦截的原始方法信息。</param>
-    /// <param name="__args">传递给原始方法的所有参数的数组。</param>
-    /// <returns>返回 true 以执行原始方法，false 以跳过原始方法。</returns>
-    public static bool DrawPrefix(SpriteBatch __instance, MethodBase __originalMethod, object[] __args)
+    
+    public static bool DrawWithVector2Scale(
+        SpriteBatch __instance,
+        Texture2D texture,
+        Vector2 position,
+        Rectangle? sourceRectangle,
+        Color color,
+        float rotation,
+        Vector2 origin,
+        Vector2 scale,
+        SpriteEffects effects,
+        float layerDepth)
     {
-        var parameters = __originalMethod.GetParameters();
-        var argsByName = new Dictionary<string, object>();
-        for (var i = 0; i < parameters.Length; i++)
-        {
-            argsByName[parameters[i].Name ?? throw new InvalidOperationException()] = __args[i];
-        }
-
-        var texture = (Texture2D)argsByName["texture"];
-        var color = (Color)argsByName["color"];
-        var rotation = argsByName.TryGetValue("rotation", out var r) ? (float)r : 0f;
-        var origin = argsByName.TryGetValue("origin", out var o) ? (Vector2)o : Vector2.Zero;
-        var effects = argsByName.TryGetValue("effects", out var e) ? (SpriteEffects)e : SpriteEffects.None;
-        var layerDepth = argsByName.TryGetValue("layerDepth", out var l) ? (float)l : 0f;
-        var sourceRectangle = argsByName.TryGetValue("sourceRectangle", out var sr) ? (Rectangle?)sr : null;
-        var scale = Vector2.One;
-        if (argsByName.TryGetValue("scale", out var s))
-        {
-            scale = s is float floatScale ? new Vector2(floatScale, floatScale) : (Vector2)s;
-        }
-
-        Rectangle destinationRectangle;
-        if (argsByName.TryGetValue("destinationRectangle", out var dr))
-        {
-            destinationRectangle = (Rectangle)dr;
-        }
-        else if (argsByName.TryGetValue("position", out var p))
-        {
-            var position = (Vector2)p;
-            var width = sourceRectangle?.Width ?? texture.Width;
-            var height = sourceRectangle?.Height ?? texture.Height;
-            destinationRectangle = new Rectangle((int)position.X, (int)position.Y, (int)(width * scale.X),
-                (int)(height * scale.Y));
-        }
-        else
-        {
+        if (_spriteAlreadyDrawn || !ShouldProcessTexture(texture, out var data))
             return true;
-        }
 
-        return DrawLogicRouter(__instance, texture, destinationRectangle, 
-            sourceRectangle, color, rotation, origin, scale, effects, layerDepth);
+        var destination = new Rectangle((int)position.X, (int)position.Y,
+            (int)((sourceRectangle?.Width ?? texture.Width) * scale.X),
+            (int)((sourceRectangle?.Height ?? texture.Height) * scale.Y));
+
+        return DrawLogicRouter(__instance, texture, destination,
+            sourceRectangle, color, rotation, origin, scale, effects, layerDepth, data);
     }
 
-    public static void ClearCache() => NonScaledTextureNames.Clear();
+    public static bool DrawWithFloatScale(
+        SpriteBatch __instance,
+        Texture2D texture,
+        Vector2 position,
+        Rectangle? sourceRectangle,
+        Color color,
+        float rotation,
+        Vector2 origin,
+        float scale,
+        SpriteEffects effects,
+        float layerDepth)
+    {
+        if (_spriteAlreadyDrawn || !ShouldProcessTexture(texture, out var data))
+            return true;
 
-    /// <summary>尝试获取指定纹理的缩放数据。</summary>
+        var scaleVec = new Vector2(scale, scale);
+        var destination = new Rectangle((int)position.X, (int)position.Y,
+            (int)((sourceRectangle?.Width ?? texture.Width) * scale),
+            (int)((sourceRectangle?.Height ?? texture.Height) * scale));
+
+        return DrawLogicRouter(__instance, texture, destination,
+            sourceRectangle, color, rotation, origin, scaleVec, effects, layerDepth, data);
+    }
+
+    public static bool DrawWithRectangle(
+        SpriteBatch __instance,
+        Texture2D texture,
+        Rectangle destinationRectangle,
+        Rectangle? sourceRectangle,
+        Color color,
+        float rotation,
+        Vector2 origin,
+        SpriteEffects effects,
+        float layerDepth)
+    {
+        if (_spriteAlreadyDrawn || !ShouldProcessTexture(texture, out var data))
+            return true;
+
+        return DrawLogicRouter(__instance, texture, destinationRectangle,
+            sourceRectangle, color, rotation, origin, Vector2.One, effects, layerDepth, data);
+    }
+
+    public static bool DrawSimpleWithSource(
+        SpriteBatch __instance,
+        Texture2D texture,
+        Vector2 position,
+        Rectangle? sourceRectangle,
+        Color color)
+    {
+        if (_spriteAlreadyDrawn || !ShouldProcessTexture(texture, out var data))
+            return true;
+
+        var destination = new Rectangle((int)position.X, (int)position.Y,
+            sourceRectangle?.Width ?? texture.Width,
+            sourceRectangle?.Height ?? texture.Height);
+
+        return DrawLogicRouter(__instance, texture, destination,
+            sourceRectangle, color, 0f, Vector2.Zero, Vector2.One, SpriteEffects.None, 0f, data);
+    }
+
+    public static bool DrawRectangleWithSource(
+        SpriteBatch __instance,
+        Texture2D texture,
+        Rectangle destinationRectangle,
+        Rectangle? sourceRectangle,
+        Color color)
+    {
+        if (_spriteAlreadyDrawn || !ShouldProcessTexture(texture, out var data))
+            return true;
+
+        return DrawLogicRouter(__instance, texture, destinationRectangle,
+            sourceRectangle, color, 0f, Vector2.Zero, Vector2.One, SpriteEffects.None, 0f, data);
+    }
+
+    public static bool DrawSimple(
+        SpriteBatch __instance,
+        Texture2D texture,
+        Vector2 position,
+        Color color)
+    {
+        if (_spriteAlreadyDrawn || !ShouldProcessTexture(texture, out var data))
+            return true;
+
+        var destination = new Rectangle((int)position.X, (int)position.Y,
+            texture.Width, texture.Height);
+
+        return DrawLogicRouter(__instance, texture, destination,
+            null, color, 0f, Vector2.Zero, Vector2.One, SpriteEffects.None, 0f, data);
+    }
+
+    public static bool DrawRectangle(
+        SpriteBatch __instance,
+        Texture2D texture,
+        Rectangle destinationRectangle,
+        Color color)
+    {
+        if (_spriteAlreadyDrawn || !ShouldProcessTexture(texture, out var data))
+            return true;
+
+        return DrawLogicRouter(__instance, texture, destinationRectangle,
+            null, color, 0f, Vector2.Zero, Vector2.One, SpriteEffects.None, 0f, data);
+    }
+
+    private static bool ShouldProcessTexture(Texture2D? texture, [NotNullWhen(true)] out ScaleUpData? data)
+    {
+        data = null;
+        return texture?.Name != null && TryGetScaleData(texture.Name, out data) && data != null;
+    }
+
     private static bool TryGetScaleData(string textureName, out ScaleUpData? data)
     {
         if (string.IsNullOrEmpty(textureName) || NonScaledTextureNames.Contains(textureName))
@@ -103,6 +241,7 @@ public class HarmonyPatches
         }
 
         NonScaledTextureNames.Add(textureName);
+        data = null;
         return false;
     }
 
@@ -111,7 +250,6 @@ public class HarmonyPatches
     {
         GetBounds(ref tileWidth, ref tileHeight, tilePosition, ref tileSheet);
     }
-
 
     public static void GetArbitrarySourceRect(ref Texture2D tileSheet, int tilePosition, ref int tileWidth,
         ref int tileHeight)
@@ -140,25 +278,19 @@ public class HarmonyPatches
             }
         }
     }
-
-    /// <summary>这是所有 Draw 补丁的最终调用目标，包含了核心的逻辑切换。</summary>
+    
     private static bool DrawLogicRouter(SpriteBatch __instance, Texture2D texture, Rectangle destination,
         Rectangle? sourceRectangle, Color color, float rotation, Vector2 origin, Vector2 scale, SpriteEffects effects,
-        float layerDepth)
+        float layerDepth, ScaleUpData data)
     {
         if (_spriteAlreadyDrawn)
         {
             return true;
         }
 
-        if (texture.Name == null || !TryGetScaleData(texture.Name, out var data) || data == null)
-        {
-            return true;
-        }
-
         if (data.Sprite != null)
         {
-            return DrawWithSpriteInDetail(__instance, texture, destination, 
+            return DrawWithSpriteInDetail(__instance, texture, destination,
                 sourceRectangle, color, rotation, origin, scale, effects, layerDepth, data);
         }
 
@@ -182,8 +314,7 @@ public class HarmonyPatches
         _spriteAlreadyDrawn = false;
         return false;
     }
-
-    /// <summary>从 SpritesInDetail 移植和简化的精细渲染逻辑。</summary>
+    
     private static bool DrawWithSpriteInDetail(SpriteBatch __instance, Texture2D texture, Rectangle destination,
         Rectangle? sourceRectangle, Color color, float rotation, Vector2 origin, Vector2 scale,
         SpriteEffects effects, float layerDepth, ScaleUpData data)
@@ -193,14 +324,15 @@ public class HarmonyPatches
         {
             return true;
         }
-        
-        const int sourceOrgWidth = 16 * 4;
+
         var r = sourceRectangle.Value;
+        const int sourceOrgWidth = 16 * 4;
         Rectangle updatedDestination;
         Rectangle updatedSource;
         Vector2 updatedOrigin;
 
         var isBreathingSprite = r is { Width: 8, Height: 8 or 4 };
+
         if (isBreathingSprite && data.Sprite.BreathType is not null and not BreathType.None)
         {
             var (srcX, srcY, srcW, srcH, adjX, adjY) = data.Sprite.BreathType switch
@@ -224,12 +356,16 @@ public class HarmonyPatches
                 (int)(srcW * scale.X / 2),
                 (int)(srcH * scale.Y / 2)
             );
-            updatedSource = new Rectangle(
-                16 * 4 * (r.X / 16) + srcX,
-                32 * 4 * (r.Y / 32) + srcY,
-                srcW,
-                srcH
-            );
+
+            var breathSourceX = 16 * 4 * (r.X / 16) + srcX;
+            var breathSourceY = 32 * 4 * (r.Y / 32) + srcY;
+
+            if (OperatingSystem.IsAndroid())
+            {
+                WrapAndroidTextureBounds(ref breathSourceX, ref breathSourceY, srcW, srcH, texture);
+            }
+
+            updatedSource = new Rectangle(breathSourceX, breathSourceY, srcW, srcH);
             updatedOrigin = new Vector2(srcW / 2f, srcH / 2f + 1);
         }
         else if (isBreathingSprite)
@@ -240,27 +376,34 @@ public class HarmonyPatches
         {
             const int itemSpriteWidth = 16;
             const int itemSpriteHeight = 24;
-            if (r is { Width: itemSpriteWidth, Height: <32 })
+            if (r is { Width: itemSpriteWidth, Height: < 32 })
             {
-                if (r is { Width:16, Height:15 }) // NPC Map Locations
+                if (r is { Width: 16, Height: 15 }) // NPC Map Locations
                 {
                     scale = new Vector2(2);
                 }
+
                 var width = (int)(itemSpriteWidth * scale.X);
                 var sourceX = data.Sprite.HeadShotX ?? 12;
                 var sourceY = data.Sprite.HeadShotY ?? 58;
                 var sourceWidth = sourceOrgWidth - 2 * sourceX;
                 var sourceHeight = sourceWidth * 24 / 16;
-                var xOff = (data.Sprite.HeadShotXRenderOffset ?? 0) + (int)(0.01302 * Math.Pow(sourceX, 3) - 0.34375 
-                    * Math.Pow(sourceX, 2) +  5.16667 * sourceX - 15);
-                var yOff = (data.Sprite.HeadShotYRenderOffset ?? 0) + (int)(0.0234375 * Math.Pow(sourceX, 3) - 0.778125 
-                    * Math.Pow(sourceX, 2) + 12.6375 * sourceX - 36.7 - 3 * Math.Exp(-Math.Pow(sourceX - 12, 2) / 2));
+                int xOff = 0, yOff = 0;
+                updatedOrigin = Vector2.Zero;
+                if (Game1.activeClickableMenu is GameMenu gameMenu && gameMenu.GetCurrentPage() is SocialPage)
+                {
+                    xOff = (data.Sprite.HeadShotXRenderOffset ?? 0) + (int)(0.01302 * Math.Pow(sourceX, 3) - 0.34375
+                        * Math.Pow(sourceX, 2) + 5.16667 * sourceX - 15);
+                    yOff = (data.Sprite.HeadShotYRenderOffset ?? 0) + (int)(0.0234375 * Math.Pow(sourceX, 3) - 0.778125
+                        * Math.Pow(sourceX, 2) + 12.6375 * sourceX - 36.7 - 3 * Math.Exp(-Math.Pow(sourceX - 12, 2) / 2));
+                    updatedOrigin = new Vector2(16, 34);
+                }
+
                 updatedDestination = new Rectangle(destination.X + xOff, destination.Y + yOff, width, width);
                 var miniMapXOff = data.Sprite.MiniMapXOffset ?? 0;
                 var miniMapYOff = data.Sprite.MiniMapYOffset ?? 0;
                 updatedSource = new Rectangle(14 + miniMapXOff, 70 + miniMapYOff, width, width);
-                updatedOrigin = new Vector2(16, 34);
-                
+
                 if (r is { Height: itemSpriteHeight, Width: itemSpriteWidth }) // half sprites
                 {
                     var height = (int)(itemSpriteHeight * scale.Y);
@@ -271,19 +414,6 @@ public class HarmonyPatches
                         updatedOrigin = new Vector2(32, 55);
                     }
                 }
-            }
-            else if (r is { Width: itemSpriteWidth, Height: <32 })
-            {
-                var width = (int)(itemSpriteWidth * scale.X);
-                var height = (int)(itemSpriteWidth * scale.Y);
-                updatedDestination = new Rectangle(
-                    destination.X,
-                    destination.Y,
-                    width,
-                    height
-                );
-                updatedSource = new Rectangle(12, 58, width, height);
-                updatedOrigin = new Vector2(16, 34);
             }
             else
             {
@@ -299,9 +429,18 @@ public class HarmonyPatches
                     (int)(charSpriteWidth * scale.X),
                     (int)(charSpriteHeight * scale.Y)
                 );
-                updatedSource = data.GetScaledSource(sourceRectangle, charSpriteWidth / 2, charSpriteHeight / 2,
-                                    out _, out _, false, true, isProfileMenu)
-                                ?? new Rectangle(r.X * 4, r.Y * 4, r.Width * 4, r.Height * 4);
+
+                var calculatedSourceX = r.X * 4;
+                var calculatedSourceY = r.Y * 4;
+                var calculatedSourceWidth = r.Width * 4;
+                var calculatedSourceHeight = r.Height * 4;
+                
+                if (OperatingSystem.IsAndroid())
+                {
+                    WrapAndroidTextureBounds(ref calculatedSourceX, ref calculatedSourceY, calculatedSourceWidth, calculatedSourceHeight, texture);
+                }
+                
+                updatedSource = new Rectangle(calculatedSourceX, calculatedSourceY, calculatedSourceWidth, calculatedSourceHeight);
                 updatedOrigin = new Vector2(data.Sprite.SpriteOriginX ?? 32, data.Sprite.SpriteOriginY ?? 112);
             }
         }
@@ -310,18 +449,50 @@ public class HarmonyPatches
         __instance.Draw(texture, updatedDestination, updatedSource, color, rotation, updatedOrigin, effects,
             layerDepth);
         _spriteAlreadyDrawn = false;
-
         return false;
     }
-}
-
-internal static class ForeachExtension
-{
-    public static void Foreach<T>(this IEnumerable<T> source, Action<T> action)
+    
+    private static void WrapAndroidTextureBounds(ref int sourceX, ref int sourceY, int sourceWidth, int sourceHeight, Texture2D texture)
     {
-        foreach (var item in source)
+        var actualWidth = texture.Width;
+        var actualHeight = texture.Height;
+
+        try
         {
-            action(item);
+            var actualWidthProp = texture.GetType().GetProperty("ActualWidth");
+            var actualHeightProp = texture.GetType().GetProperty("ActualHeight");
+            if (actualWidthProp != null && actualHeightProp != null)
+            {
+                var actualW = (int)(actualWidthProp.GetValue(texture) ?? throw new InvalidOperationException());
+                var actualH = (int)(actualHeightProp.GetValue(texture) ?? throw new InvalidOperationException());
+                if (actualW > 0 && actualH > 0)
+                {
+                    actualWidth = actualW;
+                    actualHeight = actualH;
+                }
+            }
         }
+        catch (Exception)
+        {
+            // ignored
+        }
+
+        var tilesX = actualWidth / sourceWidth;
+        var tilesY = actualHeight / sourceHeight;
+
+        if (tilesX > 0 && sourceX >= actualWidth)
+        {
+            var tileIndex = sourceX / sourceWidth;
+            sourceX = tileIndex % tilesX * sourceWidth;
+        }
+
+        if (tilesY > 0 && sourceY >= actualHeight)
+        {
+            var tileIndex = sourceY / sourceHeight;
+            sourceY = tileIndex % tilesY * sourceHeight;
+        }
+
+        if (sourceX < 0) sourceX = 0;
+        if (sourceY < 0) sourceY = 0;
     }
 }

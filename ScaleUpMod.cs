@@ -55,7 +55,6 @@ public sealed class ScaleUpMod : Mod
         {
             Scales?.Clear();
             ScalesByAsset.Clear();
-            HarmonyPatches.ClearCache();
         }
     }
 
@@ -64,6 +63,14 @@ public sealed class ScaleUpMod : Mod
         if (e.NameWithoutLocale.IsDirectlyUnderPath("Platonymous.ScaleUp"))
         {
             e.LoadFrom(() => new Dictionary<string, ScaleUpData>(), AssetLoadPriority.High);
+        }
+        if (e.NameWithoutLocale.IsDirectlyUnderPath("Characters"))
+        {
+            e.Edit(asset =>
+            {
+                var replacement = ReplacedTexture.Create(asset.AsImage().Data);
+                asset.AsImage().ReplaceWith(replacement);
+            }, AssetEditPriority.Late);
         }
     }
 
