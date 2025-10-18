@@ -19,12 +19,13 @@ public enum BreathType
 [SuppressMessage("ReSharper", "ClassNeverInstantiated.Global")]
 public class ScaleUpData
 {
-    public string Asset { get; set; } = null!;
+    public string? Target { get; set; }
+    public string? Asset { get; set; }
+    public string? Assets { get; set; }
     public float Scale { get; set; } = 1;
     public int PaddingWidth { get; set; }
     public int PaddingHeight { get; set; }
     public bool Padded => PaddingWidth + PaddingHeight > 0;
-    
     public SpriteData? Sprite { get; set; } = null;
     public class SpriteData
     {
@@ -57,15 +58,19 @@ public class ScaleUpData
     private bool _orgDimensionsInitialized;
     internal int OrgHeight { get { EnsureOrgDimensionsInitialized(); return _orgHeight; } set { _orgHeight = value; _orgDimensionsInitialized = true; } }
     internal int OrgWidth { get { EnsureOrgDimensionsInitialized(); return _orgWidth; } set { _orgWidth = value; _orgDimensionsInitialized = true; } }
+    internal string FinalAsset => (Target != null ? $"{Target}/{Asset}" : Asset)!;
 
     private void EnsureDimensionsInitialized()
     {
         if (_dimensionsInitialized) return;
         try
         {
-            var tex = ScaleUpMod.Singleton.Helper.GameContent.Load<Texture2D>(Asset);
-            _height = tex.Height;
-            _width = tex.Width;
+            if (Asset != null)
+            {
+                var tex = ScaleUpMod.Singleton.Helper.GameContent.Load<Texture2D>(FinalAsset);
+                _height = tex.Height;
+                _width = tex.Width;
+            }
         }
         catch { _height = 16; _width = 16; }
         _dimensionsInitialized = true;

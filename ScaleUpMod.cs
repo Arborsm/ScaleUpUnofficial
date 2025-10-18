@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Text.RegularExpressions;
 using StardewModdingAPI;
 using StardewModdingAPI.Events;
 
@@ -7,8 +8,8 @@ namespace ScaleUpUnofficial;
 [SuppressMessage("ReSharper", "ClassNeverInstantiated.Global")]
 public sealed class ScaleUpMod : Mod
 {
-    public const string ScaleUpdDataAsset = "Platonymous.ScaleUp/Assets";
-    public static Dictionary<string, ScaleUpData>? Scales { get; set; }
+    public const string ScaleUpName = "Arborsm.ScaleUpUnofficial";
+    public const string ScaleUpdDataAsset = $"{ScaleUpName}/Assets";
     public static Dictionary<string, ScaleUpData?> ScalesByAsset { get; } = new();
     public static ScaleUpMod Singleton { get; private set; } = null!;
     
@@ -25,7 +26,6 @@ public sealed class ScaleUpMod : Mod
 
     private void GameLoop_DayStarted(object? sender, DayStartedEventArgs e)
     {
-        Scales = Helper.GameContent.Load<Dictionary<string, ScaleUpData>>(ScaleUpdDataAsset);
         UpdateScalesByAssetDictionary();
     }
 
@@ -37,32 +37,25 @@ public sealed class ScaleUpMod : Mod
 
     private void Content_AssetReady(object? sender, AssetReadyEventArgs e)
     {
-        if (e.NameWithoutLocale.IsDirectlyUnderPath("Platonymous.ScaleUp"))
+        if (e.NameWithoutLocale.IsDirectlyUnderPath(ScaleUpName))
         {
-            Scales = Helper.GameContent.Load<Dictionary<string, ScaleUpData>>(ScaleUpdDataAsset);
-            CheckForDuplicates();
             UpdateScalesByAssetDictionary();
-            foreach (var key in Scales.Keys)
-            {
-                Monitor.Log($"Loaded scaling data for resource {Scales[key].Asset} (provided by {key}).");
-            }
         }
     }
 
     private static void Content_AssetsInvalidated(object? sender, AssetsInvalidatedEventArgs e)
     {
-        if (e.NamesWithoutLocale.Any(a => a.IsDirectlyUnderPath("Platonymous.ScaleUp")))
+        if (e.NamesWithoutLocale.Any(a => a.IsDirectlyUnderPath(ScaleUpName)))
         {
-            Scales?.Clear();
             ScalesByAsset.Clear();
         }
     }
 
     private static void Content_AssetRequested(object? sender, AssetRequestedEventArgs e)
     {
-        if (e.NameWithoutLocale.IsDirectlyUnderPath("Platonymous.ScaleUp"))
+        if (e.NameWithoutLocale.IsDirectlyUnderPath(ScaleUpName))
         {
-            e.LoadFrom(() => new Dictionary<string, ScaleUpData>(), AssetLoadPriority.High);
+            e.LoadFrom(() => new Dictionary<string, List<ScaleUpData>>(), AssetLoadPriority.High);
         }
         if (e.NameWithoutLocale.IsDirectlyUnderPath("Characters"))
         {
@@ -74,34 +67,24 @@ public sealed class ScaleUpMod : Mod
         }
     }
 
-    /// <summary>检查是否有多个Mod为同一个资源提供了缩放数据，并移除冲突项。</summary>
-    private void CheckForDuplicates()
-    {
-        if (Scales == null) return;
-        foreach (var item in Scales.Values.ToArray())
-        {
-            if (Scales.Values.Any(v => v != item && v.Asset == item.Asset))
-            {
-                var keys = Scales.Keys.Where(k => Scales[k].Asset == item.Asset).ToArray();
-                foreach (var item1 in keys)
-                {
-                    Scales.Remove(item1);
-                }
-
-                Monitor.Log($"Resource {item.Asset} is specified by multiple mods ({string.Join(',', keys)}). " +
-                            $"All related scaling data has been removed to prevent conflicts.", LogLevel.Error);
-            }
-        }
-    }
-
     /// <summary>更新用于快速查找的字典缓存。</summary>
-    private static void UpdateScalesByAssetDictionary()
+    private void UpdateScalesByAssetDictionary()
     {
-        if (Scales == null) return;
+        var scales = Helper.GameContent.Load<Dictionary<string, List<ScaleUpData>>>(ScaleUpdDataAsset);
         ScalesByAsset.Clear();
-        foreach (var scale in Scales.Values)
+        foreach (var scale in scales.Values.SelectMany(item => item))
         {
-            ScalesByAsset.TryAdd(scale.Asset, scale);
+            if (scale.Asset != null)
+            {
+                ScalesByAsset.TryAdd(scale.FinalAsset, scale);
+            } 
+            else if (scale.Assets != null)
+            {
+                foreach (var asset in Regex.Replace(scale.Assets, @"\s", "").Split(','))
+                {
+                    ScalesByAsset.TryAdd(asset, scale);
+                }
+            }
         }
     }
 }

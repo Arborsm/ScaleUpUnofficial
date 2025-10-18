@@ -1,9 +1,9 @@
 {
   "Name": "ScaleUpUnofficial",
-  "Author": "Platonymous, Arborsm",
-  "Version": "2.4.0",
+  "Author": "Arborsm, Platonymous",
+  "Version": "2.5.0",
   "Description": "Allows adding higher resolution textures via ContentPatcher",
-  "UniqueID": "Platonymous.ScaleUp",
+  "UniqueID": "Arborsm.ScaleUpUnofficial",
   "EntryDll": "ScaleUpUnofficial.dll",
   "MinimumApiVersion": "4.0.0",
   "UpdateKeys": [],

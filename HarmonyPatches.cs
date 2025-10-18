@@ -14,10 +14,11 @@ public class HarmonyPatches
 {
     private static readonly HashSet<string> NonScaledTextureNames = new();
     private static bool _spriteAlreadyDrawn;
+    private static bool _init;
 
     public static void PatchAll()
     {
-        var harmonyInstance = new Harmony("Arborsm.ScaleUp");
+        var harmonyInstance = new Harmony(ScaleUpMod.ScaleUpName);
         var spriteBatchType = typeof(SpriteBatch);
 
         // Draw(Texture2D texture, Vector2 position, Rectangle? sourceRectangle, Color color, float rotation, Vector2 origin, Vector2 scale, SpriteEffects effects, float layerDepth)
@@ -266,8 +267,12 @@ public class HarmonyPatches
     [SuppressMessage("ReSharper", "UnusedParameter.Local")]
     private static void GetBounds(ref int width, ref int height, int tilePosition, ref Texture2D tileSheet)
     {
-        ScaleUpMod.Scales ??=
-            ScaleUpMod.Singleton.Helper.GameContent.Load<Dictionary<string, ScaleUpData>>(ScaleUpMod.ScaleUpdDataAsset);
+        if (!_init)
+        {
+            ScaleUpMod.Singleton.Helper.GameContent
+                .Load<Dictionary<string, List<ScaleUpData>>>(ScaleUpMod.ScaleUpdDataAsset);
+            _init = true;
+        }
 
         if (tileSheet.Name is { } name)
         {
