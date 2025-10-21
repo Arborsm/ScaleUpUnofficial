@@ -1,5 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
+using Microsoft.Xna.Framework.Graphics;
 using StardewModdingAPI;
 using StardewModdingAPI.Events;
 
@@ -22,6 +24,38 @@ public sealed class ScaleUpMod : Mod
         helper.Events.Content.AssetReady += Content_AssetReady;
         helper.Events.GameLoop.GameLaunched += GameLoop_GameLaunched;
         helper.Events.GameLoop.DayStarted += GameLoop_DayStarted;
+    }
+    
+    private static void Content_AssetRequested(object? sender, AssetRequestedEventArgs e)
+    {
+        if (e.NameWithoutLocale.IsDirectlyUnderPath(ScaleUpName))
+        {
+            e.LoadFrom(() => new Dictionary<string, List<ScaleUpData>>(), AssetLoadPriority.High);
+        }
+        if (e.NameWithoutLocale.IsDirectlyUnderPath("Characters"))
+        {
+            e.Edit(asset =>
+            {
+                var textureDataGathered = new ManualResetEvent(false);
+                Texture2D? replacement = null;
+                if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                {
+                    HarmonyPatches.EnqueueAction(() =>
+                    {
+                        replacement = ReplacedTexture.Create(asset.AsImage().Data);
+                        textureDataGathered.Set();
+                    });
+                    textureDataGathered.WaitOne();
+                    textureDataGathered.Reset();
+                }
+                else
+                {
+                    replacement = ReplacedTexture.Create(asset.AsImage().Data);
+                }
+                if (replacement == null) throw new Exception("Failed to create replacement texture.");
+                asset.AsImage().ReplaceWith(replacement);
+            }, AssetEditPriority.Late);
+        }
     }
 
     private void GameLoop_DayStarted(object? sender, DayStartedEventArgs e)
@@ -51,38 +85,21 @@ public sealed class ScaleUpMod : Mod
         }
     }
 
-    private static void Content_AssetRequested(object? sender, AssetRequestedEventArgs e)
-    {
-        if (e.NameWithoutLocale.IsDirectlyUnderPath(ScaleUpName))
-        {
-            e.LoadFrom(() => new Dictionary<string, List<ScaleUpData>>(), AssetLoadPriority.High);
-        }
-        if (e.NameWithoutLocale.IsDirectlyUnderPath("Characters"))
-        {
-            e.Edit(asset =>
-            {
-                var replacement = ReplacedTexture.Create(asset.AsImage().Data);
-                asset.AsImage().ReplaceWith(replacement);
-            }, AssetEditPriority.Late);
-        }
-    }
-
     /// <summary>更新用于快速查找的字典缓存。</summary>
     private void UpdateScalesByAssetDictionary()
     {
         var scales = Helper.GameContent.Load<Dictionary<string, List<ScaleUpData>>>(ScaleUpdDataAsset);
-        ScalesByAsset.Clear();
         foreach (var scale in scales.Values.SelectMany(item => item))
         {
             if (scale.Asset != null)
             {
-                ScalesByAsset.TryAdd(scale.FinalAsset, scale);
+                ScalesByAsset.TryAdd(scale.FinalAsset(scale.Asset), scale);
             } 
             else if (scale.Assets != null)
             {
                 foreach (var asset in Regex.Replace(scale.Assets, @"\s", "").Split(','))
                 {
-                    ScalesByAsset.TryAdd(asset, scale);
+                    ScalesByAsset.TryAdd(scale.FinalAsset(asset), scale);
                 }
             }
         }

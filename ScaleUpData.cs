@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics.CodeAnalysis;
+using System.Text.RegularExpressions;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 // ReSharper disable UnusedMember.Global
@@ -58,7 +59,7 @@ public class ScaleUpData
     private bool _orgDimensionsInitialized;
     internal int OrgHeight { get { EnsureOrgDimensionsInitialized(); return _orgHeight; } set { _orgHeight = value; _orgDimensionsInitialized = true; } }
     internal int OrgWidth { get { EnsureOrgDimensionsInitialized(); return _orgWidth; } set { _orgWidth = value; _orgDimensionsInitialized = true; } }
-    internal string FinalAsset => (Target != null ? $"{Target}/{Asset}" : Asset)!;
+    internal string FinalAsset(string asset) => Target != null ? $"{Target}/{asset}" : asset;
 
     private void EnsureDimensionsInitialized()
     {
@@ -67,9 +68,24 @@ public class ScaleUpData
         {
             if (Asset != null)
             {
-                var tex = ScaleUpMod.Singleton.Helper.GameContent.Load<Texture2D>(FinalAsset);
+                var tex = ScaleUpMod.Singleton.Helper.GameContent.Load<Texture2D>(FinalAsset(Asset));
                 _height = tex.Height;
                 _width = tex.Width;
+            }
+            else if (Assets != null)
+            {
+                var assets = Regex.Replace(Assets, @"\s", "").Split(',');
+                foreach (var asset in assets)
+                {
+                    if (_height > 0 && _width > 0) continue;
+                    var tex = ScaleUpMod.Singleton.Helper.GameContent.Load<Texture2D>(FinalAsset(asset));
+                    _height = tex.Height;
+                    _width = tex.Width;
+                }
+            }
+            else
+            {
+                throw  new Exception("Asset or Assets must be set.");
             }
         }
         catch { _height = 16; _width = 16; }
@@ -125,9 +141,12 @@ public class ScaleUpData
 
 internal class ReplacedTexture : Texture2D
 {
-    private ReplacedTexture(Texture2D texture, int width, int height)
+    internal readonly bool IsSizeChanged;
+    
+    private ReplacedTexture(Texture2D texture, int width, int height, bool isSizeChanged = false)
         : base(texture.GraphicsDevice, 1, 1)
     {
+        IsSizeChanged = isSizeChanged;
         CopyFromTexture(texture);
         SetImageSize(width, height);
     }
@@ -140,6 +159,7 @@ internal class ReplacedTexture : Texture2D
         {
             width /= 4;
             height /= 4;
+            return new ReplacedTexture(texture, width, height, true);
         }
         return new ReplacedTexture(texture, width, height);
     }

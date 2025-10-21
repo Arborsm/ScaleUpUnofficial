@@ -13,6 +13,7 @@ namespace ScaleUpUnofficial;
 public class HarmonyPatches
 {
     private static readonly HashSet<string> NonScaledTextureNames = new();
+    private static readonly Queue<Action> _actions = new();
     private static bool _spriteAlreadyDrawn;
     private static bool _init;
 
@@ -87,13 +88,40 @@ public class HarmonyPatches
             prefix: new HarmonyMethod(typeof(HarmonyPatches), nameof(DrawRectangle))
         );
         
+        harmonyInstance.Patch(AccessTools.Method(typeof(Game1), "Draw"),
+            prefix: new HarmonyMethod(typeof(HarmonyPatches), nameof(Draw)));
+        harmonyInstance.Patch(AccessTools.Method(typeof(Texture2D), nameof(Texture2D.CopyFromTexture)),
+            prefix: new HarmonyMethod(typeof(HarmonyPatches), nameof(CopyFromTexture)));
         harmonyInstance.Patch(AccessTools.Method(typeof(Game1), nameof(Game1.getSourceRectForStandardTileSheet)),
             prefix: new HarmonyMethod(typeof(HarmonyPatches), nameof(GetSourceRectForStandardTileSheet)));
-        harmonyInstance.Patch(
-            AccessTools.Method(typeof(Game1), nameof(Game1.getSquareSourceRectForNonStandardTileSheet)),
+        harmonyInstance.Patch(AccessTools.Method(typeof(Game1), nameof(Game1.getSquareSourceRectForNonStandardTileSheet)),
             prefix: new HarmonyMethod(typeof(HarmonyPatches), nameof(GetSquareSourceRectForNonStandardTileSheet)));
         harmonyInstance.Patch(AccessTools.Method(typeof(Game1), nameof(Game1.getArbitrarySourceRect)),
             prefix: new HarmonyMethod(typeof(HarmonyPatches), nameof(GetArbitrarySourceRect)));
+    }
+
+    [SuppressMessage("ReSharper", "UnusedParameter.Local")]
+    private static bool Draw(Game1 __instance, GameTime gameTime)
+    {
+        while (_actions.Count > 0) _actions.Dequeue().Invoke();
+        return true;
+    }
+    
+    public static void EnqueueAction(Action action)
+    {
+        if(action == null) return;
+        _actions.Enqueue(action);
+    }
+
+    [SuppressMessage("ReSharper", "UnusedParameter.Local")]
+    private static bool CopyFromTexture(Texture2D __instance, Texture2D other)
+    {
+        if (other is ReplacedTexture { IsSizeChanged: true })
+        {
+            ScaleUpMod.Singleton.Monitor.Log("Not Allowed modification to [ReplacedTexture](" + other.Name + ")");
+            return false;
+        }
+        return true;
     }
     
     public static bool DrawWithVector2Scale(
@@ -302,10 +330,6 @@ public class HarmonyPatches
         var ow = sourceRectangle?.Width ?? data.OrgWidth;
         var oh = sourceRectangle?.Height ?? data.OrgHeight;
         var newSource = data.GetScaledSource(sourceRectangle, ow, oh, out var padX, out var padY, true);
-
-        var newScale = scale;
-        newScale.X /= data.Scale;
-        newScale.Y /= data.Scale;
         var newOrigin = origin * data.Scale;
         if (data.Padded)
         {
@@ -314,7 +338,7 @@ public class HarmonyPatches
         }
 
         _spriteAlreadyDrawn = true;
-        __instance.Draw(texture, destination.Location.ToVector2(), newSource, color, rotation, newOrigin, newScale,
+        __instance.Draw(texture, destination.Location.ToVector2(), newSource, color, rotation, newOrigin, scale,
             effects, layerDepth);
         _spriteAlreadyDrawn = false;
         return false;
