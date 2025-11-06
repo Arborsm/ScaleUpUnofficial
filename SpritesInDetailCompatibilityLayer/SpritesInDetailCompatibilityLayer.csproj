@@ -10,6 +10,7 @@
 
     <PropertyGroup>
         <GamePath>E:\SteamLibrary\steamapps\common\Stardew Valley</GamePath>
+        <EnableModZip>false</EnableModZip>
     </PropertyGroup>
 
     <ItemGroup>
