@@ -59,7 +59,7 @@ public class ScaleUpData
     private bool _orgDimensionsInitialized;
     internal int OrgHeight { get { EnsureOrgDimensionsInitialized(); return _orgHeight; } set { _orgHeight = value; _orgDimensionsInitialized = true; } }
     internal int OrgWidth { get { EnsureOrgDimensionsInitialized(); return _orgWidth; } set { _orgWidth = value; _orgDimensionsInitialized = true; } }
-    internal string FinalAsset(string asset) => Target != null ? $"{Target}/{asset}" : asset;
+    public string FinalAsset(string asset) => Target != null ? $"{Target}/{asset}" : asset;
 
     private void EnsureDimensionsInitialized()
     {
@@ -68,7 +68,7 @@ public class ScaleUpData
         {
             if (Asset != null)
             {
-                var tex = ScaleUpMod.Singleton.Helper.GameContent.Load<Texture2D>(FinalAsset(Asset));
+                var tex = ScaleUpMod.Singleton!.Helper.GameContent.Load<Texture2D>(FinalAsset(Asset));
                 _height = tex.Height;
                 _width = tex.Width;
             }
@@ -78,7 +78,7 @@ public class ScaleUpData
                 foreach (var asset in assets)
                 {
                     if (_height > 0 && _width > 0) continue;
-                    var tex = ScaleUpMod.Singleton.Helper.GameContent.Load<Texture2D>(FinalAsset(asset));
+                    var tex = ScaleUpMod.Singleton!.Helper.GameContent.Load<Texture2D>(FinalAsset(asset));
                     _height = tex.Height;
                     _width = tex.Width;
                 }
@@ -136,31 +136,5 @@ public class ScaleUpData
         var x = column * width;
         var y = row * height;
         return new Rectangle(x, y, width, height);
-    }
-}
-
-internal class ReplacedTexture : Texture2D
-{
-    internal readonly bool IsSizeChanged;
-    
-    private ReplacedTexture(Texture2D texture, int width, int height, bool isSizeChanged = false)
-        : base(texture.GraphicsDevice, 1, 1)
-    {
-        IsSizeChanged = isSizeChanged;
-        CopyFromTexture(texture);
-        SetImageSize(width, height);
-    }
-    
-    public static Texture2D Create(Texture2D texture)
-    {
-        var width = texture.Width;
-        var height = texture.Height;
-        if (width > 64)
-        {
-            width /= 4;
-            height /= 4;
-            return new ReplacedTexture(texture, width, height, true);
-        }
-        return new ReplacedTexture(texture, width, height);
     }
 }

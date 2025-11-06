@@ -1,7 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
-using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
-using Microsoft.Xna.Framework.Graphics;
 using StardewModdingAPI;
 using StardewModdingAPI.Events;
 
@@ -13,7 +11,7 @@ public sealed class ScaleUpMod : Mod
     public const string ScaleUpName = "Arborsm.ScaleUpUnofficial";
     public const string ScaleUpdDataAsset = $"{ScaleUpName}/Assets";
     public static Dictionary<string, ScaleUpData?> ScalesByAsset { get; } = new();
-    public static ScaleUpMod Singleton { get; private set; } = null!;
+    public static ScaleUpMod? Singleton { get; private set; }
     
     public override void Entry(IModHelper helper)
     {
@@ -32,33 +30,10 @@ public sealed class ScaleUpMod : Mod
         {
             e.LoadFrom(() => new Dictionary<string, List<ScaleUpData>>(), AssetLoadPriority.High);
         }
-        if (e.NameWithoutLocale.IsDirectlyUnderPath("Characters"))
-        {
-            e.Edit(asset =>
-            {
-                var textureDataGathered = new ManualResetEvent(false);
-                Texture2D? replacement = null;
-                if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-                {
-                    HarmonyPatches.EnqueueAction(() =>
-                    {
-                        replacement = ReplacedTexture.Create(asset.AsImage().Data);
-                        textureDataGathered.Set();
-                    });
-                    textureDataGathered.WaitOne();
-                    textureDataGathered.Reset();
-                }
-                else
-                {
-                    replacement = ReplacedTexture.Create(asset.AsImage().Data);
-                }
-                if (replacement == null) throw new Exception("Failed to create replacement texture.");
-                asset.AsImage().ReplaceWith(replacement);
-            }, AssetEditPriority.Late);
-        }
+        AssetRequested.Invoke(sender, e);
     }
-
-    private void GameLoop_DayStarted(object? sender, DayStartedEventArgs e)
+    
+    private static void GameLoop_DayStarted(object? sender, DayStartedEventArgs e)
     {
         UpdateScalesByAssetDictionary();
     }
@@ -67,14 +42,16 @@ public sealed class ScaleUpMod : Mod
     {
         var api = Helper.ModRegistry.GetApi<IContentPatcherApi>("Pathoschild.ContentPatcher");
         api?.RegisterToken(ModManifest, "Assets", new ScaleUpToken());
+        GameLaunched.Invoke(sender, e);
     }
 
-    private void Content_AssetReady(object? sender, AssetReadyEventArgs e)
+    private static void Content_AssetReady(object? sender, AssetReadyEventArgs e)
     {
         if (e.NameWithoutLocale.IsDirectlyUnderPath(ScaleUpName))
         {
             UpdateScalesByAssetDictionary();
         }
+        AssetReady.Invoke(sender, e);
     }
 
     private static void Content_AssetsInvalidated(object? sender, AssetsInvalidatedEventArgs e)
@@ -85,10 +62,17 @@ public sealed class ScaleUpMod : Mod
         }
     }
 
-    /// <summary>更新用于快速查找的字典缓存。</summary>
-    private void UpdateScalesByAssetDictionary()
+    public void InitMaps()
     {
-        var scales = Helper.GameContent.Load<Dictionary<string, List<ScaleUpData>>>(ScaleUpdDataAsset);
+        Helper.GameContent
+            .Load<Dictionary<string, List<ScaleUpData>>>(ScaleUpdDataAsset);
+        OnInitMaps.Invoke(this, EventArgs.Empty);
+    }
+    
+    private static void UpdateScalesByAssetDictionary()
+    {
+        if (Singleton == null) return;
+        var scales = Singleton.Helper.GameContent.Load<Dictionary<string, List<ScaleUpData>>>(ScaleUpdDataAsset);
         foreach (var scale in scales.Values.SelectMany(item => item))
         {
             if (scale.Asset != null)
@@ -104,6 +88,11 @@ public sealed class ScaleUpMod : Mod
             }
         }
     }
+
+    public static event EventHandler<AssetRequestedEventArgs> AssetRequested = (_, _) => { };
+    public static event EventHandler<AssetReadyEventArgs> AssetReady = (_, _) => { };
+    public static event EventHandler<GameLaunchedEventArgs> GameLaunched = (_, _) => { };
+    public static event EventHandler OnInitMaps = (_, _) => { };
 }
 
 public interface IContentPatcherApi
