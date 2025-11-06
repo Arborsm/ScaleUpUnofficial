@@ -15,6 +15,9 @@ public class HarmonyPatches
     private static readonly HashSet<string> NonScaledTextureNames = new();
     private static bool _spriteAlreadyDrawn;
     private static bool _init;
+    private static readonly Lazy<bool> _isCJBInstalled = new(()=>ScaleUpMod.Singleton!.Helper.ModRegistry.IsLoaded("CJBok.CheatsMenu"));
+    private static bool isCJBInstalled => _isCJBInstalled.Value;
+    
 
     public static void PatchAll()
     {
@@ -437,6 +440,14 @@ public class HarmonyPatches
                         * Math.Pow(sourceX, 2) + 5.16667 * sourceX - 15);
                     yOff = (data.Sprite.HeadShotYRenderOffset ?? 0) + (int)(0.0234375 * Math.Pow(sourceX, 3) - 0.778125
                         * Math.Pow(sourceX, 2) + 12.6375 * sourceX - 36.7 - 3 * Math.Exp(-Math.Pow(sourceX - 12, 2) / 2));
+                    updatedOrigin = new Vector2(16, 34);
+                }
+                else if (Game1.activeClickableMenu != null && isCJBInstalled && Game1.activeClickableMenu.GetType().Name == "CheatsMenu")
+                {
+                    xOff = (data.Sprite.HeadShotXRenderOffset ?? 0) + (int)(0.01302 * Math.Pow(sourceX, 3) - 0.34375
+                        * Math.Pow(sourceX, 2) + 5.16667 * sourceX - 23);
+                    yOff = (data.Sprite.HeadShotYRenderOffset ?? 0) + (int)(0.0234375 * Math.Pow(sourceX, 3) - 0.778125
+                        * Math.Pow(sourceX, 2) + 12.6375 * sourceX - 50.7 - 3 * Math.Exp(-Math.Pow(sourceX - 12, 2) / 2));
                     updatedOrigin = new Vector2(16, 34);
                 }
 
