@@ -9,7 +9,6 @@ namespace SpritesInDetailCompatibilityLayer;
 [SuppressMessage("ReSharper", "UnusedType.Global")]
 public class SpritesInDetailToScaleUpMod : Mod
 {
-    private static bool _init;
     private const string SpritesInDetailDataAsset = "BleakCodex.SpritesInDetail/Assets";
     private const string SpritesInDetailData = "BleakCodex.SpritesInDetail";
     
@@ -18,19 +17,17 @@ public class SpritesInDetailToScaleUpMod : Mod
 
     public override void Entry(IModHelper helper)
     {
+        helper.Events.GameLoop.GameLaunched += GameLoop_GameLaunched;
+        
         ScaleUpMod.AssetRequested += Content_AssetRequested;
         ScaleUpMod.AssetReady += Content_AssetReady;
-        ScaleUpMod.GameLaunched += GameLoop_GameLaunched;
         ScaleUpMod.OnInitMaps += InitMaps;
     }
 
-    private void InitMaps(object? sender, EventArgs e)
+    private static void InitMaps(object? sender, ScaleInitMapEventArgs e)
     {
-        if (!_init && ScaleUpMod.Singleton != null)
-        {
-            Helper.GameContent.Load<Dictionary<string, List<ScaleUpData>>>(SpritesInDetailDataAsset);
-            _init = true;
-        }
+        e.Helper.GameContent.Load<Dictionary<string, List<ScaleUpData>>>(SpritesInDetailDataAsset);
+        ScaleUpMod.Singleton?.Monitor.Log("Init SpritesInDetail Maps", LogLevel.Info);
     }
 
     private void Content_AssetRequested(object? sender, AssetRequestedEventArgs e)
@@ -194,24 +191,23 @@ public class SpritesInDetailToScaleUpMod : Mod
     private void GameLoop_GameLaunched(object? sender, GameLaunchedEventArgs e)
     {
         var cpApi = Helper.ModRegistry.GetApi<IContentPatcherApi>("Pathoschild.ContentPatcher");
-        
-        if (cpApi != null)
-        {
-            foreach (var (tokenKey, manifest) in TokensToRegister)
-            {
-                cpApi.RegisterToken(manifest, tokenKey, () =>
-                {
-                    if (Settings.ContainsKey(manifest) && Settings[manifest].ContainsKey(tokenKey))
-                    {
-                        return new[] { Settings[manifest][tokenKey] };
-                    }
-                    return null;
-                });
-            }
-        }
 
-        var api = Helper.ModRegistry.GetApi<ScaleUpUnofficial.IContentPatcherApi>("Pathoschild.ContentPatcher");
-        api?.RegisterToken(ModManifest, "Assets", new SpritesInDetailToken());
+        if (cpApi == null) return;
+        
+        foreach (var (tokenKey, manifest) in TokensToRegister)
+        {
+            cpApi.RegisterToken(manifest, tokenKey, () =>
+            {
+                if (Settings.ContainsKey(manifest) && Settings[manifest].ContainsKey(tokenKey))
+                {
+                    return new[] { Settings[manifest][tokenKey] };
+                }
+                return null;
+            });
+        }
+        
+        cpApi.RegisterToken(ModManifest, "Assets", new SpritesInDetailToken());
+        ScaleUpMod.Singleton?.Monitor.Log("Registered SiD token successfully.", LogLevel.Info);
     }
 
     private void Content_AssetReady(object? sender, AssetReadyEventArgs e)
@@ -257,6 +253,7 @@ public interface IContentPatcherApi
     bool IsConditionsApiReady { get; }
     IManagedConditions ParseConditions(IManifest manifest, IDictionary<string, string?>? rawConditions, ISemanticVersion formatVersion, string[]? assumeModIds = null);
     void RegisterToken(IManifest mod, string name, Func<IEnumerable<string>?> getValue);
+    void RegisterToken(IManifest mod, string name, object token);
 }
 
 public interface IManagedConditions

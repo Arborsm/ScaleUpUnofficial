@@ -42,7 +42,7 @@ public sealed class ScaleUpMod : Mod
     {
         var api = Helper.ModRegistry.GetApi<IContentPatcherApi>("Pathoschild.ContentPatcher");
         api?.RegisterToken(ModManifest, "Assets", new ScaleUpToken());
-        GameLaunched.Invoke(sender, e);
+        Monitor.Log("Registered Main token successfully.", LogLevel.Info);
     }
 
     private static void Content_AssetReady(object? sender, AssetReadyEventArgs e)
@@ -66,7 +66,14 @@ public sealed class ScaleUpMod : Mod
     {
         Helper.GameContent
             .Load<Dictionary<string, List<ScaleUpData>>>(ScaleUpdDataAsset);
-        OnInitMaps.Invoke(this, EventArgs.Empty);
+        try
+        {
+            OnInitMaps.Invoke(this, new ScaleInitMapEventArgs(Helper));
+        }
+        catch (Exception e)
+        {
+            Monitor.Log($"Error Initializing ScaleUp Map: {e}", LogLevel.Error);
+        }
     }
     
     private static void UpdateScalesByAssetDictionary()
@@ -91,9 +98,10 @@ public sealed class ScaleUpMod : Mod
 
     public static event EventHandler<AssetRequestedEventArgs> AssetRequested = (_, _) => { };
     public static event EventHandler<AssetReadyEventArgs> AssetReady = (_, _) => { };
-    public static event EventHandler<GameLaunchedEventArgs> GameLaunched = (_, _) => { };
-    public static event EventHandler OnInitMaps = (_, _) => { };
+    public static event EventHandler<ScaleInitMapEventArgs> OnInitMaps = (_, _) => { };
 }
+
+public record ScaleInitMapEventArgs(IModHelper Helper);
 
 public interface IContentPatcherApi
 {

@@ -8,24 +8,21 @@ namespace PlatonymousScaleUpCompatibilityLayer;
 [SuppressMessage("ReSharper", "UnusedType.Global")]
 public sealed class PlatonymousScaleUpMod : Mod
 {
-    private static bool _init;
     private const string PlatonymousScaleUpdDataAsset = "Platonymous.ScaleUp/Assets";
     private const string PlatonymousScaleUpdData = "Platonymous.ScaleUp";
     public override void Entry(IModHelper helper)
     {
+        helper.Events.GameLoop.GameLaunched += GameLoop_GameLaunched;
+        
         ScaleUpMod.AssetRequested += Content_AssetRequested;
         ScaleUpMod.AssetReady += Content_AssetReady;
-        ScaleUpMod.GameLaunched += GameLoop_GameLaunched;
         ScaleUpMod.OnInitMaps += InitMaps;
     }
     
-    private static void InitMaps(object? sender, EventArgs e)
+    private static void InitMaps(object? sender, ScaleInitMapEventArgs e)
     {
-        if (!_init && ScaleUpMod.Singleton != null)
-        {
-            ScaleUpMod.Singleton.Helper.GameContent.Load<Dictionary<string, ScaleUpData>>(PlatonymousScaleUpdDataAsset);
-            _init = true;
-        }
+        e.Helper.GameContent.Load<Dictionary<string, ScaleUpData>>(PlatonymousScaleUpdDataAsset);
+        ScaleUpMod.Singleton?.Monitor.Log("Init SC2 Maps", LogLevel.Info);
     }
 
     private static void Content_AssetRequested(object? sender, AssetRequestedEventArgs e)
@@ -40,9 +37,10 @@ public sealed class PlatonymousScaleUpMod : Mod
     {
         var api = Helper.ModRegistry.GetApi<IContentPatcherApi>("Pathoschild.ContentPatcher");
         api?.RegisterToken(ModManifest, "Assets", new ScaleUpToken());
+        ScaleUpMod.Singleton?.Monitor.Log("Registered SC2 token successfully.", LogLevel.Info);
     }
 
-    private void Content_AssetReady(object? sender, AssetReadyEventArgs e)
+    private static void Content_AssetReady(object? sender, AssetReadyEventArgs e)
     {
         if (e.NameWithoutLocale.IsDirectlyUnderPath(PlatonymousScaleUpdData))
         {
