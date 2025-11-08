@@ -6,7 +6,7 @@
   "UniqueID": "Arborsm.ScaleUpUnofficial",
   "EntryDll": "ScaleUpUnofficial.dll",
   "MinimumApiVersion": "4.0.0",
-  "UpdateKeys": [],
+  "UpdateKeys": ["Nexus:36813"],
   "Dependencies": [
     {
       "UniqueID": "Pathoschild.ContentPatcher"
