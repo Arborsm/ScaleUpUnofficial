@@ -71,11 +71,11 @@ public class SpritesInDetailToScaleUpMod : Mod
 
             Monitor.Log($"读取 SpritesInDetail content pack: {contentPack.Manifest.Name} {contentPack.Manifest.Version} 从 {contentPack.DirectoryPath}");
             
-            dynamic? dynamicConfig = contentPack.ReadJsonFile<dynamic>("config.json");
+            var dynamicConfig = contentPack.ReadJsonFile<dynamic>("config.json");
 
             if (dynamicConfig == null)
             {
-                contentPackSettings.Add("Enabled", "true");
+                contentPackSettings.TryAdd("Enabled", "true");
             }
             else
             {
@@ -86,7 +86,7 @@ public class SpritesInDetailToScaleUpMod : Mod
                     {
                         if (keyValue.Value == null) continue;
                         
-                        contentPackSettings.Add(keyValue.Key, keyValue.Value.ToString() ?? string.Empty);
+                        contentPackSettings.TryAdd(keyValue.Key, keyValue.Value.ToString() ?? string.Empty);
                         
                         if (keyValue.Key != "Enabled")
                         {
@@ -101,7 +101,7 @@ public class SpritesInDetailToScaleUpMod : Mod
                 Settings[contentPack.Manifest] = contentPackSettings;
             }
             
-            bool enabled = true;
+            var enabled = true;
             if (contentPackSettings.TryGetValue("Enabled", out var setting))
             {
                 enabled = setting.ToLower() == "true";
@@ -122,7 +122,7 @@ public class SpritesInDetailToScaleUpMod : Mod
                     }
                 }
 
-                bool conditionsMatch = true;
+                var conditionsMatch = true;
                 var cpApi = Helper.ModRegistry.GetApi<IContentPatcherApi>("Pathoschild.ContentPatcher");
                 if (conditionals.Count > 0 && cpApi is { IsConditionsApiReady: true })
                 {

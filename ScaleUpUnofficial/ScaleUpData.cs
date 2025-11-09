@@ -109,6 +109,7 @@ public class ScaleUpData
         padx = 0; pady = 0;
         if (source.HasValue)
         {
+            if (originalHeight == 0 || originalWidth == 0) return null;
             var tilesX = OrgWidth / originalWidth;
             var tilesY = OrgHeight / originalHeight;
             var x = source.Value.X / originalWidth;
@@ -127,9 +128,9 @@ public class ScaleUpData
         return null;
     }
 
-    private static Rectangle GetSourceRectForStandardTileSheet(int texWidth, int tilePosition, int width, int height)
+    private static Rectangle? GetSourceRectForStandardTileSheet(int texWidth, int tilePosition, int width, int height)
     {
-        if (width <= 0 || height <= 0) return Rectangle.Empty;
+        if (width <= 0 || height <= 0) return null;
         var tilesPerRow = texWidth / width;
         var row = tilePosition / tilesPerRow;
         var column = tilePosition % tilesPerRow;

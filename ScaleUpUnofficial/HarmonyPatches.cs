@@ -345,6 +345,10 @@ public class HarmonyPatches
         var ow = sourceRectangle?.Width ?? data.OrgWidth;
         var oh = sourceRectangle?.Height ?? data.OrgHeight;
         var newSource = data.GetScaledSource(sourceRectangle, ow, oh, out var padX, out var padY, true);
+        if (newSource == null)
+        {
+            return true;
+        }
         var newOrigin = origin * data.Scale;
         if (data.Padded)
         {
