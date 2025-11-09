@@ -47,9 +47,29 @@ public class SpritesInDetailToScaleUpMod : Mod
                     if (pixelReplacement?.FromFile == null) continue;
                     e.Edit(asset =>
                     {
-                        var replace = contentPack.ModContent.Load<Texture2D>(pixelReplacement.FromFile);
-                        var replacement = new ReplacedTexture(asset.AsImage().Data, replace);
-                        asset.AsImage().ReplaceWith(replacement);
+                        if (OperatingSystem.IsAndroid())
+                        {
+                            ReplacedTexture replacement = null!;
+                            var replace = contentPack.ModContent.Load<Texture2D>(pixelReplacement.FromFile);
+                            var textureDataGathered = new ManualResetEvent(false);
+                            if (OperatingSystem.IsAndroid())
+                            {
+                                HarmonyPatches.EnqueueAction(() =>
+                                {
+                                    replacement = new ReplacedTexture(asset.AsImage().Data, replace);
+                                    textureDataGathered.Set();
+                                });
+                                textureDataGathered.WaitOne();
+                                textureDataGathered.Reset();
+                            }
+                            asset.AsImage().ReplaceWith(replacement);
+                        }
+                        else
+                        {
+                            var replace = contentPack.ModContent.Load<Texture2D>(pixelReplacement.FromFile);
+                            var replacement = new ReplacedTexture(asset.AsImage().Data, replace);
+                            asset.AsImage().ReplaceWith(replacement);
+                        }
                     });
                 }
             }

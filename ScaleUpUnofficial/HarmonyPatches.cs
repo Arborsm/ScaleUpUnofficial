@@ -17,7 +17,7 @@ public class HarmonyPatches
     private static bool _init;
     private static readonly Lazy<bool> _isCJBInstalled = new(()=>ScaleUpMod.Singleton!.Helper.ModRegistry.IsLoaded("CJBok.CheatsMenu"));
     private static bool isCJBInstalled => _isCJBInstalled.Value;
-    
+    private static readonly Queue<Action> _actions = new();
 
     public static void PatchAll()
     {
@@ -90,6 +90,8 @@ public class HarmonyPatches
             prefix: new HarmonyMethod(typeof(HarmonyPatches), nameof(DrawRectangle))
         );
         
+        harmonyInstance.Patch(AccessTools.Method(typeof(Game1), "Draw"),
+            prefix: new HarmonyMethod(typeof(HarmonyPatches), nameof(Draw)));
         harmonyInstance.Patch(AccessTools.PropertyGetter(typeof(AnimatedSprite), "textureWidth"),
             postfix: new HarmonyMethod(typeof(HarmonyPatches), nameof(GetTextureWidth)));
         harmonyInstance.Patch(AccessTools.PropertyGetter(typeof(AnimatedSprite), "textureHeight"),
@@ -101,6 +103,19 @@ public class HarmonyPatches
             prefix: new HarmonyMethod(typeof(HarmonyPatches), nameof(GetSquareSourceRectForNonStandardTileSheet)));
         harmonyInstance.Patch(AccessTools.Method(typeof(Game1), nameof(Game1.getArbitrarySourceRect)),
             prefix: new HarmonyMethod(typeof(HarmonyPatches), nameof(GetArbitrarySourceRect)));
+    }
+    
+    [SuppressMessage("ReSharper", "UnusedParameter.Local")]
+    private static bool Draw(Game1 __instance, GameTime gameTime)
+    {
+        while (_actions.Count > 0) _actions.Dequeue().Invoke();
+        return true;
+    }
+    
+    public static void EnqueueAction(Action action)
+    {
+        if(action == null) return;
+        _actions.Enqueue(action);
     }
     
     private static void GetTextureWidth(AnimatedSprite __instance, ref int __result)
