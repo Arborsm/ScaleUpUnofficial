@@ -1,7 +1,11 @@
 ﻿<Solution>
-  <Project Path="PlatonymousScaleUpCompatibilityLayer\PlatonymousScaleUpCompatibilityLayer.csproj" Type="Classic C#" />
+  <Project Path="PlatonymousScaleUpCompatibilityLayer\PlatonymousScaleUpCompatibilityLayer.csproj" Type="Classic C#">
+    <Configuration Solution="Release|Any CPU" Project="Release|Any CPU|Deploy" />
+  </Project>
   <Project Path="ScaleUpUnofficial\ScaleUpUnofficial.csproj" Type="Classic C#">
     <Configuration Solution="Release|Any CPU" Project="Release|Any CPU|Deploy" />
   </Project>
-  <Project Path="SpritesInDetailCompatibilityLayer\SpritesInDetailCompatibilityLayer.csproj" Type="Classic C#" />
+  <Project Path="SpritesInDetailCompatibilityLayer\SpritesInDetailCompatibilityLayer.csproj" Type="Classic C#">
+    <Configuration Solution="Release|Any CPU" Project="Release|Any CPU|Deploy" />
+  </Project>
 </Solution>

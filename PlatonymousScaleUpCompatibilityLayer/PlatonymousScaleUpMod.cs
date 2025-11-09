@@ -22,7 +22,6 @@ public sealed class PlatonymousScaleUpMod : Mod
     private static void InitMaps(object? sender, ScaleInitMapEventArgs e)
     {
         e.Helper.GameContent.Load<Dictionary<string, ScaleUpData>>(PlatonymousScaleUpdDataAsset);
-        ScaleUpMod.Singleton?.Monitor.Log("Init SC2 Maps", LogLevel.Info);
     }
 
     private static void Content_AssetRequested(object? sender, AssetRequestedEventArgs e)
@@ -37,7 +36,6 @@ public sealed class PlatonymousScaleUpMod : Mod
     {
         var api = Helper.ModRegistry.GetApi<IContentPatcherApi>("Pathoschild.ContentPatcher");
         api?.RegisterToken(ModManifest, "Assets", new ScaleUpToken());
-        ScaleUpMod.Singleton?.Monitor.Log("Registered SC2 token successfully.", LogLevel.Info);
     }
 
     private static void Content_AssetReady(object? sender, AssetReadyEventArgs e)

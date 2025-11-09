@@ -27,7 +27,7 @@ public class ScaleUpData
     public int PaddingWidth { get; set; }
     public int PaddingHeight { get; set; }
     public bool Padded => PaddingWidth + PaddingHeight > 0;
-    public SpriteData? Sprite { get; set; } = null;
+    public SpriteData? Sprite { get; set; }
     public class SpriteData
     {
         public int? SpriteOriginX { get; set; }
@@ -64,32 +64,37 @@ public class ScaleUpData
     private void EnsureDimensionsInitialized()
     {
         if (_dimensionsInitialized) return;
-        try
+        if (Asset != null)
         {
-            if (Asset != null)
+            var tex = ScaleUpMod.Singleton!.Helper.GameContent.Load<Texture2D>(FinalAsset(Asset));
+            Init(tex);
+        }
+        else if (Assets != null)
+        {
+            var assets = Regex.Replace(Assets, @"\s", "").Split(',');
+            foreach (var asset in assets)
             {
-                var tex = ScaleUpMod.Singleton!.Helper.GameContent.Load<Texture2D>(FinalAsset(Asset));
-                _height = tex.Height;
-                _width = tex.Width;
-            }
-            else if (Assets != null)
-            {
-                var assets = Regex.Replace(Assets, @"\s", "").Split(',');
-                foreach (var asset in assets)
-                {
-                    if (_height > 0 && _width > 0) continue;
-                    var tex = ScaleUpMod.Singleton!.Helper.GameContent.Load<Texture2D>(FinalAsset(asset));
-                    _height = tex.Height;
-                    _width = tex.Width;
-                }
-            }
-            else
-            {
-                throw  new Exception("Asset or Assets must be set.");
+                if (_height > 0 && _width > 0) continue;
+                var tex = ScaleUpMod.Singleton!.Helper.GameContent.Load<Texture2D>(FinalAsset(asset));
+                Init(tex);
             }
         }
-        catch { _height = 16; _width = 16; }
+        else
+        {
+            throw new Exception("Asset or Assets must be set.");
+        }
         _dimensionsInitialized = true;
+        return;
+
+        void Init(Texture2D tex)
+        {
+            if (tex is ReplacedTexture replacedTexture)
+            {
+                tex = replacedTexture.NewTexture!;
+            }
+            _height = tex.Height;
+            _width = tex.Width;
+        }
     }
 
     private void EnsureOrgDimensionsInitialized()
@@ -109,7 +114,6 @@ public class ScaleUpData
         padx = 0; pady = 0;
         if (source.HasValue)
         {
-            if (originalHeight == 0 || originalWidth == 0) return null;
             var tilesX = OrgWidth / originalWidth;
             var tilesY = OrgHeight / originalHeight;
             var x = source.Value.X / originalWidth;
@@ -128,14 +132,28 @@ public class ScaleUpData
         return null;
     }
 
-    private static Rectangle? GetSourceRectForStandardTileSheet(int texWidth, int tilePosition, int width, int height)
+    private static Rectangle GetSourceRectForStandardTileSheet(int texWidth, int tilePosition, int width, int height)
     {
-        if (width <= 0 || height <= 0) return null;
+        if (width <= 0 || height <= 0) return Rectangle.Empty;
         var tilesPerRow = texWidth / width;
         var row = tilePosition / tilesPerRow;
         var column = tilePosition % tilesPerRow;
         var x = column * width;
         var y = row * height;
         return new Rectangle(x, y, width, height);
+    }
+}
+
+public class ReplacedTexture : Texture2D
+{
+    public Texture2D OriginalTexture {get; set;}
+    public Texture2D? NewTexture { get; set; }
+        
+    public ReplacedTexture(Texture2D originalTexture, Texture2D? newTexture) 
+        : base(originalTexture.GraphicsDevice, originalTexture.Width, originalTexture.Height)
+    {
+        OriginalTexture = originalTexture;
+        NewTexture = newTexture;
+        CopyFromTexture(originalTexture);
     }
 }

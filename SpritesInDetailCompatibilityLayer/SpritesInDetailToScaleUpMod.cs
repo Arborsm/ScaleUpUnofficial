@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics.CodeAnalysis;
+using System.Drawing;
 using Microsoft.Xna.Framework.Graphics;
 using ScaleUpUnofficial;
 using StardewModdingAPI;
@@ -18,46 +19,59 @@ public class SpritesInDetailToScaleUpMod : Mod
     public override void Entry(IModHelper helper)
     {
         helper.Events.GameLoop.GameLaunched += GameLoop_GameLaunched;
+        helper.Events.Content.AssetRequested += Content_AssetRequested;
         
-        ScaleUpMod.AssetRequested += Content_AssetRequested;
+        ScaleUpMod.AssetRequested += SC_Content_AssetRequested;
         ScaleUpMod.AssetReady += Content_AssetReady;
         ScaleUpMod.OnInitMaps += InitMaps;
     }
 
-    private static void InitMaps(object? sender, ScaleInitMapEventArgs e)
-    {
-        e.Helper.GameContent.Load<Dictionary<string, List<ScaleUpData>>>(SpritesInDetailDataAsset);
-        ScaleUpMod.Singleton?.Monitor.Log("Init SpritesInDetail Maps", LogLevel.Info);
-    }
-
     private void Content_AssetRequested(object? sender, AssetRequestedEventArgs e)
     {
-        if (e.NameWithoutLocale.IsDirectlyUnderPath(SpritesInDetailData))
-        {
-            e.LoadFrom(LoadSpritesInDetailData, AssetLoadPriority.High);
-        }
-        
-        if (ScaleUpMod.Singleton == null) return;
-
         foreach (var contentPack in Helper.ContentPacks.GetOwned())
         {
             if (!contentPack.HasFile("content.json")) continue;
 
             var content = contentPack.ReadJsonFile<Content>("content.json");
             if (content == null) continue;
-
-            foreach (var sprite in content.Sprites
-                         .Where(sprite => !string.IsNullOrEmpty(sprite.FromFile) && e.Name.IsEquivalentTo(sprite.Target)))
+            
+            foreach (var sprite in content.Sprites.Where(sprite => e.Name.IsEquivalentTo(sprite.Target)))
             {
-                e.LoadFrom(() => contentPack.ModContent.Load<Texture2D>(sprite.FromFile!), AssetLoadPriority.High);
-                return;     
+                if (sprite.FromFile != null) {
+                    e.LoadFrom(() => contentPack.ModContent.Load<Texture2D>(sprite.FromFile), AssetLoadPriority.High);
+                } 
+                
+                if (sprite.PixelReplacements is { Count: > 0 })
+                {
+                    var pixelReplacement = sprite.PixelReplacements.FirstOrDefault();
+                    if (pixelReplacement?.FromFile == null) continue;
+                    e.Edit(asset =>
+                    {
+                        var replace = contentPack.ModContent.Load<Texture2D>(pixelReplacement.FromFile);
+                        var replacement = new ReplacedTexture(asset.AsImage().Data, replace);
+                        asset.AsImage().ReplaceWith(replacement);
+                    });
+                }
             }
         }
     }
 
-    private Dictionary<string, List<ScaleUpData>> LoadSpritesInDetailData()
+    private static void InitMaps(object? sender, ScaleInitMapEventArgs e)
     {
-        var result = new Dictionary<string, List<ScaleUpData>>();
+        e.Helper.GameContent.Load<Dictionary<string, ScaleUpData>>(SpritesInDetailDataAsset);
+    }
+
+    private void SC_Content_AssetRequested(object? sender, AssetRequestedEventArgs e)
+    {
+        if (e.NameWithoutLocale.IsDirectlyUnderPath(SpritesInDetailData))
+        {
+            e.LoadFrom(LoadSpritesInDetailData, AssetLoadPriority.High);
+        }
+    }
+
+    private Dictionary<string, ScaleUpData> LoadSpritesInDetailData()
+    {
+        var result = new Dictionary<string, ScaleUpData>();
         
         if (ScaleUpMod.Singleton == null) return result;
 
@@ -140,14 +154,30 @@ public class SpritesInDetailToScaleUpMod : Mod
                 if (!conditionsMatch) continue;
 
                 var scaleUpData = ConvertSpriteToScaleUpData(sprite);
-                if (scaleUpData == null) continue;
-
-                var key = sprite.Target;
-                if (!result.ContainsKey(key))
+                if (scaleUpData != null)
                 {
-                    result[key] = new List<ScaleUpData>();
+                    result.TryAdd(sprite.Target, scaleUpData);
                 }
-                result[key].Add(scaleUpData);
+                
+                foreach (var pixelReplacement in sprite.PixelReplacements)
+                {
+                    if (pixelReplacement.TargetX == null || pixelReplacement.TargetY == null || 
+                        string.IsNullOrEmpty(pixelReplacement.FromFile))
+                    {
+                        Monitor.Log($"Missing required fields for PixelReplacement in {sprite.Target}, skipping...", LogLevel.Warn);
+                        continue;
+                    }
+
+                    var pixelScaleUpData = ConvertPixelReplacementToScaleUpData(pixelReplacement, sprite.Target, contentPack);
+                    
+                    if (pixelScaleUpData != null)
+                    {
+                        if (!result.ContainsKey(sprite.Target))
+                            result.TryAdd(sprite.Target, pixelScaleUpData);
+                        else
+                            result[sprite.Target] = pixelScaleUpData;
+                    }
+                }
             }
         }
 
@@ -188,6 +218,68 @@ public class SpritesInDetailToScaleUpMod : Mod
         return scaleUpData;
     }
 
+    private ScaleUpData? ConvertPixelReplacementToScaleUpData(
+        PixelReplacement pixelReplacement, 
+        string targetAsset, 
+        IContentPack contentPack)
+    {
+        if (string.IsNullOrEmpty(pixelReplacement.FromFile) || 
+            pixelReplacement.TargetX == null || 
+            pixelReplacement.TargetY == null)
+        {
+            return null;
+        }
+
+        try
+        {
+            Texture2D? originalTexture = null;
+            try
+            {
+                originalTexture = Helper.GameContent.Load<Texture2D>(targetAsset);
+            }
+            catch
+            {
+                Monitor.Log($"Cannot load original texture {targetAsset}，using default scale 1.0f", LogLevel.Warn);
+            }
+            
+            Texture2D? replacementTexture;
+            try
+            {
+                replacementTexture = contentPack.ModContent.Load<Texture2D>(pixelReplacement.FromFile);
+            }
+            catch
+            {
+                Monitor.Log($"Cannot load replacement texture {pixelReplacement.FromFile}，skip PixelReplacement", LogLevel.Warn);
+                return null;
+            }
+            
+            float scale = 1.0f;
+            if (originalTexture != null && replacementTexture != null)
+            {
+                float widthScale = (float)replacementTexture.Width / originalTexture.Width;
+                float heightScale = (float)replacementTexture.Height / originalTexture.Height;
+                scale = Math.Max(widthScale, heightScale);
+            }
+            else if (replacementTexture != null)
+            {
+                scale = 4f;
+            }
+            
+            var scaleUpData = new ScaleUpData
+            {
+                Asset = targetAsset,
+                Scale = scale
+            };
+
+            return scaleUpData;
+        }
+        catch (Exception ex)
+        {
+            Monitor.Log($"Parse PixelReplacement Error: {ex.Message}", LogLevel.Error);
+            return null;
+        }
+    }
+
     private void GameLoop_GameLaunched(object? sender, GameLaunchedEventArgs e)
     {
         var cpApi = Helper.ModRegistry.GetApi<IContentPatcherApi>("Pathoschild.ContentPatcher");
@@ -207,7 +299,6 @@ public class SpritesInDetailToScaleUpMod : Mod
         }
         
         cpApi.RegisterToken(ModManifest, "Assets", new SpritesInDetailToken());
-        ScaleUpMod.Singleton?.Monitor.Log("Registered SiD token successfully.", LogLevel.Info);
     }
 
     private void Content_AssetReady(object? sender, AssetReadyEventArgs e)
@@ -221,13 +312,10 @@ public class SpritesInDetailToScaleUpMod : Mod
     private void UpdateScalesByAssetDictionary()
     {
         if (ScaleUpMod.Singleton == null) return;
-        var scales = Helper.GameContent.Load<Dictionary<string, List<ScaleUpData>>>(SpritesInDetailDataAsset);
-        foreach (var (targetAsset, scaleList) in scales)
+        var scales = Helper.GameContent.Load<Dictionary<string, ScaleUpData>>(SpritesInDetailDataAsset);
+        foreach (var (targetAsset, scaleUpData) in scales)
         {
-            foreach (var scale in scaleList)
-            {
-                ScaleUpMod.ScalesByAsset.TryAdd(targetAsset, scale);
-            }
+            ScaleUpMod.ScalesByAsset.TryAdd(targetAsset, scaleUpData);
         }
     }
 

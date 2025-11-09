@@ -339,6 +339,11 @@ public class HarmonyPatches
                 sourceRectangle, color, rotation, origin, scale, effects, layerDepth, data);
         }
 
+        if (texture is ReplacedTexture replacedTexture)
+        {
+            texture = replacedTexture.NewTexture!;
+        }
+
         var newScale = scale;
         newScale.X /= data.Scale;
         newScale.Y /= data.Scale;

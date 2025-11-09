@@ -42,7 +42,6 @@ public sealed class ScaleUpMod : Mod
     {
         var api = Helper.ModRegistry.GetApi<IContentPatcherApi>("Pathoschild.ContentPatcher");
         api?.RegisterToken(ModManifest, "Assets", new ScaleUpToken());
-        Monitor.Log("Registered Main token successfully.", LogLevel.Info);
     }
 
     private static void Content_AssetReady(object? sender, AssetReadyEventArgs e)
