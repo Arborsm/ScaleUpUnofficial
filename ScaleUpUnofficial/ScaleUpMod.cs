@@ -11,14 +11,13 @@ public sealed class ScaleUpMod : Mod
     public const string ScaleUpName = "Arborsm.ScaleUpUnofficial";
     public const string ScaleUpdDataAsset = $"{ScaleUpName}/Assets";
     public static Dictionary<string, ScaleUpData?> ScalesByAsset { get; } = new();
-    public static ScaleUpMod? Singleton { get; private set; }
+    public static ScaleUpMod? Instance { get; private set; }
     
     public override void Entry(IModHelper helper)
     {
-        Singleton = this;
+        Instance = this;
         HarmonyPatches.PatchAll();
         helper.Events.Content.AssetRequested += Content_AssetRequested;
-        helper.Events.Content.AssetsInvalidated += Content_AssetsInvalidated;
         helper.Events.Content.AssetReady += Content_AssetReady;
         helper.Events.GameLoop.GameLaunched += GameLoop_GameLaunched;
         helper.Events.GameLoop.DayStarted += GameLoop_DayStarted;
@@ -53,14 +52,6 @@ public sealed class ScaleUpMod : Mod
         AssetReady.Invoke(sender, e);
     }
 
-    private static void Content_AssetsInvalidated(object? sender, AssetsInvalidatedEventArgs e)
-    {
-        if (e.NamesWithoutLocale.Any(a => a.IsDirectlyUnderPath(ScaleUpName)))
-        {
-            ScalesByAsset.Clear();
-        }
-    }
-
     public void InitMaps()
     {
         Helper.GameContent
@@ -77,8 +68,8 @@ public sealed class ScaleUpMod : Mod
     
     private static void UpdateScalesByAssetDictionary()
     {
-        if (Singleton == null) return;
-        var scales = Singleton.Helper.GameContent.Load<Dictionary<string, List<ScaleUpData>>>(ScaleUpdDataAsset);
+        if (Instance == null) return;
+        var scales = Instance.Helper.GameContent.Load<Dictionary<string, List<ScaleUpData>>>(ScaleUpdDataAsset);
         foreach (var scale in scales.Values.SelectMany(item => item))
         {
             if (scale.Asset != null)
@@ -93,6 +84,7 @@ public sealed class ScaleUpMod : Mod
                 }
             }
         }
+        HarmonyPatches.NonScaledTextureNames.Clear();
     }
 
     public static event EventHandler<AssetRequestedEventArgs> AssetRequested = (_, _) => { };

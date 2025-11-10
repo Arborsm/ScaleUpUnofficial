@@ -48,8 +48,8 @@ public sealed class PlatonymousScaleUpMod : Mod
     
     public static void UpdateScalesByAssetDictionary()
     {
-        if (ScaleUpMod.Singleton == null) return;
-        var scales = ScaleUpMod.Singleton.Helper.GameContent.Load<Dictionary<string, ScaleUpData>>(PlatonymousScaleUpdDataAsset);
+        if (ScaleUpMod.Instance == null) return;
+        var scales = ScaleUpMod.Instance.Helper.GameContent.Load<Dictionary<string, ScaleUpData>>(PlatonymousScaleUpdDataAsset);
         foreach (var scale in scales.Values)
         {
             if (scale.Asset != null)

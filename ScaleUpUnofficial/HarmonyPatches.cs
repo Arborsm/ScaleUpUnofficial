@@ -12,10 +12,10 @@ namespace ScaleUpUnofficial;
 [SuppressMessage("ReSharper", "UnusedMember.Global")]
 public class HarmonyPatches
 {
-    private static readonly HashSet<string> NonScaledTextureNames = new();
+    public static readonly HashSet<string> NonScaledTextureNames = new();
     private static bool _spriteAlreadyDrawn;
     private static bool _init;
-    private static readonly Lazy<bool> _isCJBInstalled = new(()=>ScaleUpMod.Singleton!.Helper.ModRegistry.IsLoaded("CJBok.CheatsMenu"));
+    private static readonly Lazy<bool> _isCJBInstalled = new(()=>ScaleUpMod.Instance!.Helper.ModRegistry.IsLoaded("CJBok.CheatsMenu"));
     private static bool isCJBInstalled => _isCJBInstalled.Value;
     private static readonly Queue<Action> _actions = new();
 
@@ -323,9 +323,9 @@ public class HarmonyPatches
     [SuppressMessage("ReSharper", "UnusedParameter.Local")]
     private static void GetBounds(ref int width, ref int height, int tilePosition, ref Texture2D tileSheet)
     {
-        if (!_init && ScaleUpMod.Singleton != null)
+        if (!_init && ScaleUpMod.Instance != null)
         {
-            ScaleUpMod.Singleton.InitMaps();
+            ScaleUpMod.Instance.InitMaps();
             _init = true;
         }
 

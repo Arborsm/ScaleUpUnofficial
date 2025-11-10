@@ -1,5 +1,4 @@
 ﻿using System.Diagnostics.CodeAnalysis;
-using System.Drawing;
 using Microsoft.Xna.Framework.Graphics;
 using ScaleUpUnofficial;
 using StardewModdingAPI;
@@ -93,7 +92,7 @@ public class SpritesInDetailToScaleUpMod : Mod
     {
         var result = new Dictionary<string, ScaleUpData>();
         
-        if (ScaleUpMod.Singleton == null) return result;
+        if (ScaleUpMod.Instance == null) return result;
 
         var contentPackSettings = new Dictionary<string, string>();
         foreach (var contentPack in Helper.ContentPacks.GetOwned())
@@ -331,7 +330,7 @@ public class SpritesInDetailToScaleUpMod : Mod
 
     private void UpdateScalesByAssetDictionary()
     {
-        if (ScaleUpMod.Singleton == null) return;
+        if (ScaleUpMod.Instance == null) return;
         var scales = Helper.GameContent.Load<Dictionary<string, ScaleUpData>>(SpritesInDetailDataAsset);
         foreach (var (targetAsset, scaleUpData) in scales)
         {

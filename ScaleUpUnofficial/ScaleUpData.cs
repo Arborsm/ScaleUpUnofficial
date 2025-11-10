@@ -66,7 +66,7 @@ public class ScaleUpData
         if (_dimensionsInitialized) return;
         if (Asset != null)
         {
-            var tex = ScaleUpMod.Singleton!.Helper.GameContent.Load<Texture2D>(FinalAsset(Asset));
+            var tex = ScaleUpMod.Instance!.Helper.GameContent.Load<Texture2D>(FinalAsset(Asset));
             Init(tex);
         }
         else if (Assets != null)
@@ -75,7 +75,7 @@ public class ScaleUpData
             foreach (var asset in assets)
             {
                 if (_height > 0 && _width > 0) continue;
-                var tex = ScaleUpMod.Singleton!.Helper.GameContent.Load<Texture2D>(FinalAsset(asset));
+                var tex = ScaleUpMod.Instance!.Helper.GameContent.Load<Texture2D>(FinalAsset(asset));
                 Init(tex);
             }
         }

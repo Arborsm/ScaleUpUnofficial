@@ -1,7 +1,7 @@
 {
   "Name": "ScaleUpUnofficial - Sprites in Detail Compatibility Layer",
   "Author": "Arborsm",
-  "Version": "2.0.0",
+  "Version": "9.9.9",
   "Description": "Allows use Sprites in Detail's mods works.",
   "UniqueID": "BleakCodex.SpritesInDetail",
   "EntryDll": "SpritesInDetailCompatibilityLayer.dll",
