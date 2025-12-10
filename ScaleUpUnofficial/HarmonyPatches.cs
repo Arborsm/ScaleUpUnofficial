@@ -506,7 +506,13 @@ public class HarmonyPatches
                     (int)(charSpriteHeight * scale.Y)
                 );
 
-                var calculatedSourceX = r.X * 4;
+                var sourceX = r.X;
+                if (data.OrgWidth > 0)
+                {
+                    sourceX %= data.OrgWidth;
+                }
+
+                var calculatedSourceX = sourceX * 4;
                 var calculatedSourceY = r.Y * 4;
                 var calculatedSourceWidth = r.Width * 4;
                 var calculatedSourceHeight = r.Height * 4;
