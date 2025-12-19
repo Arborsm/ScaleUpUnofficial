@@ -30,6 +30,7 @@ public class ScaleUpData
     public SpriteData? Sprite { get; set; }
     public class SpriteData
     {
+        public bool? IsSmallSprite { get; set; } 
         public int? SpriteOriginX { get; set; }
         public int? SpriteOriginY { get; set; }
         public BreathType? BreathType { get; set; }

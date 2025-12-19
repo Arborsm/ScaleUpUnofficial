@@ -112,7 +112,7 @@ public class HarmonyPatches
         return true;
     }
     
-    public static void EnqueueAction(Action action)
+    public static void EnqueueAction(Action? action)
     {
         if(action == null) return;
         _actions.Enqueue(action);
@@ -444,7 +444,9 @@ public class HarmonyPatches
         {
             const int itemSpriteWidth = 16;
             const int itemSpriteHeight = 24;
-            if (r is { Width: itemSpriteWidth, Height: < 32 })
+            var isSmallSprite  = data.Sprite.IsSmallSprite is true;
+            var isSwimmingSprite = r is { Width: 16, Height: 16 } && Game1.activeClickableMenu == null;
+            if (r is { Width: itemSpriteWidth, Height: < 32 } && !isSmallSprite && !isSwimmingSprite)
             {
                 if (r is { Width: 16, Height: 15 }) // NPC Map Locations
                 {
@@ -494,8 +496,8 @@ public class HarmonyPatches
             else
             {
                 const int charSpriteWidth = 32;
-                const int charSpriteHeight = 64;
-
+                var sourceHeight = r.Height;
+                var targetHeight = sourceHeight * 2; 
                 var isProfileMenu = Game1.activeClickableMenu is ProfileMenu;
                 var (xOff, yOff) = isProfileMenu ? (32, 112) : (0, 0);
 
@@ -503,17 +505,20 @@ public class HarmonyPatches
                     destination.X + xOff,
                     destination.Y + yOff,
                     (int)(charSpriteWidth * scale.X),
-                    (int)(charSpriteHeight * scale.Y)
+                    (int)(targetHeight * scale.Y)
                 );
 
-                var sourceX = r.X;
-                if (data.OrgWidth > 0)
-                {
-                    sourceX %= data.OrgWidth;
-                }
+                // 计算源矩形坐标
+                // 对于游泳等特殊状态，帧可能跨行排列在精灵表中
+                // 需要正确处理 X 坐标的换行
+                var frameWidth = 16; // 单帧宽度
+                var framesPerRow = data.OrgWidth > 0 ? data.OrgWidth / frameWidth : 4;
+                var frameIndex = r.X / frameWidth;
+                var frameInRow = frameIndex % framesPerRow;
+                var rowFromX = frameIndex / framesPerRow;
 
-                var calculatedSourceX = sourceX * 4;
-                var calculatedSourceY = r.Y * 4;
+                var calculatedSourceX = frameInRow * frameWidth * 4;
+                var calculatedSourceY = (r.Y + rowFromX * r.Height) * 4;
                 var calculatedSourceWidth = r.Width * 4;
                 var calculatedSourceHeight = r.Height * 4;
                 
@@ -523,7 +528,14 @@ public class HarmonyPatches
                 }
                 
                 updatedSource = new Rectangle(calculatedSourceX, calculatedSourceY, calculatedSourceWidth, calculatedSourceHeight);
-                updatedOrigin = new Vector2(data.Sprite.SpriteOriginX ?? 32, data.Sprite.SpriteOriginY ?? 112);
+
+                var finalOriginY = sourceHeight switch
+                {
+                    <= 16 => 96,
+                    _ => data.Sprite.SpriteOriginY ?? (isSmallSprite ? 78 : 112)
+                };
+
+                updatedOrigin = new Vector2(data.Sprite.SpriteOriginX ?? 32, finalOriginY);
             }
         }
 
