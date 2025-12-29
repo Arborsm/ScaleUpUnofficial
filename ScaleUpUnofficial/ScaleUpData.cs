@@ -115,8 +115,25 @@ public class ScaleUpData
         padx = 0; pady = 0;
         if (source.HasValue)
         {
+            // 防止除零错误
+            if (originalWidth <= 0 || originalHeight <= 0)
+            {
+                if (force)
+                    return new Rectangle(0, 0, Width, Height);
+                return null;
+            }
+
             var tilesX = OrgWidth / originalWidth;
             var tilesY = OrgHeight / originalHeight;
+
+            // 防止 tilesX 或 tilesY 为 0 导致的除零错误
+            if (tilesX <= 0 || tilesY <= 0)
+            {
+                if (force)
+                    return new Rectangle(0, 0, Width, Height);
+                return null;
+            }
+
             var x = source.Value.X / originalWidth;
             if (!cycle)
                 x %= tilesX;

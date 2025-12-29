@@ -104,23 +104,38 @@ Write-Host "Output location: $OutputPath" -ForegroundColor Green
 if ($Configuration -eq "Release") {
     $zipFileName = "ScaleUpUnofficial $version.zip"
     $zipPath = Join-Path ".\Release" $zipFileName
-    
+
     Write-Host ""
     Write-Host "Creating zip archive: $zipFileName" -ForegroundColor Cyan
-    
+
     # Delete existing zip file
     if (Test-Path $zipPath) {
         Remove-Item $zipPath -Force
     }
-    
-    # Create zip archive directly from output directory
-    # Compress "Scale Up Unofficial" directory so zip contains it
-    $parentDir = (Resolve-Path (Split-Path $OutputPath -Parent)).Path
-    $dirName = Split-Path $OutputPath -Leaf
-    $absoluteZipPath = (Resolve-Path (Split-Path $zipPath -Parent)).Path | Join-Path -ChildPath (Split-Path $zipPath -Leaf)
-    Push-Location $parentDir
-    Compress-Archive -Path $dirName -DestinationPath $absoluteZipPath -Force
-    Pop-Location
-    
+
+    # Use .NET ZipFile class for cross-platform compatible zip
+    # PowerShell's Compress-Archive uses backslashes which break on Linux
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+
+    $absoluteOutputPath = (Resolve-Path $OutputPath).Path
+    $absoluteZipPath = Join-Path (Resolve-Path ".\Release").Path $zipFileName
+
+    # Create zip with forward slashes for Linux/macOS compatibility
+    $zip = [System.IO.Compression.ZipFile]::Open($absoluteZipPath, 'Create')
+    try {
+        $basePath = Split-Path $absoluteOutputPath -Parent
+        $rootDirName = Split-Path $absoluteOutputPath -Leaf
+
+        Get-ChildItem -Path $absoluteOutputPath -Recurse -File | ForEach-Object {
+            $relativePath = $_.FullName.Substring($basePath.Length + 1)
+            # Convert backslashes to forward slashes for cross-platform compatibility
+            $entryName = $relativePath -replace '\\', '/'
+            [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip, $_.FullName, $entryName) | Out-Null
+        }
+    }
+    finally {
+        $zip.Dispose()
+    }
+
     Write-Host "Zip archive created: $zipPath" -ForegroundColor Green
 }
