@@ -38,7 +38,17 @@ public class SpritesInDetailToScaleUpMod : Mod
             {
                 if (sprite.FromFile != null) {
                     e.LoadFrom(() => contentPack.ModContent.Load<Texture2D>(sprite.FromFile), AssetLoadPriority.High);
-                } 
+                    // 若其他模组以更高优先级（如 Exclusive）加载了目标资源，上面的 LoadFrom 会被覆盖，
+                    // 用 Edit 把纹理替换回高清版，保证 FromFile 始终生效
+                    e.Edit(asset =>
+                    {
+                        var replacement = contentPack.ModContent.Load<Texture2D>(sprite.FromFile);
+                        if (!ReferenceEquals(asset.Data, replacement))
+                        {
+                            asset.ReplaceWith(replacement);
+                        }
+                    });
+                }
                 
                 if (sprite.PixelReplacements is { Count: > 0 })
                 {
@@ -207,9 +217,12 @@ public class SpritesInDetailToScaleUpMod : Mod
     {
         if (string.IsNullOrEmpty(sprite.Target)) return null;
 
+        // Asset 必须是游戏资源名（Target），不能是内容包内的文件路径：
+        // ScaleUp 主模组会用 GameContent.Load 加载它来读取尺寸，并按纹理名匹配绘制调用；
+        // FromFile 的高清纹理已在 Content_AssetRequested 里通过 LoadFrom/Edit 替换到 Target 上
         var scaleUpData = new ScaleUpData
         {
-            Asset = !string.IsNullOrEmpty(sprite.FromFile) ? sprite.FromFile : sprite.Target
+            Asset = sprite.Target
         };
 
         var widthScale = sprite.WidthScale ?? 4;

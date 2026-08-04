@@ -508,17 +508,17 @@ public class HarmonyPatches
                     (int)(targetHeight * scale.Y)
                 );
 
-                // 计算源矩形坐标
-                // 对于游泳等特殊状态，帧可能跨行排列在精灵表中
-                // 需要正确处理 X 坐标的换行
-                var frameWidth = 16; // 单帧宽度
-                var framesPerRow = data.OrgWidth > 0 ? data.OrgWidth / frameWidth : 4;
-                var frameIndex = r.X / frameWidth;
-                var frameInRow = frameIndex % framesPerRow;
-                var rowFromX = frameIndex / framesPerRow;
+                // 部分动画（如钓鱼）给出的 X 坐标会超出原始贴图宽度，
+                // 此时按行宽取模、保持行号不变；不能把溢出的 X 换算到下方行，
+                // 否则会闪烁显示精灵表中钓鱼帧下方的其他行
+                var sourceX = r.X;
+                if (data.OrgWidth > 0)
+                {
+                    sourceX %= data.OrgWidth;
+                }
 
-                var calculatedSourceX = frameInRow * frameWidth * 4;
-                var calculatedSourceY = (r.Y + rowFromX * r.Height) * 4;
+                var calculatedSourceX = sourceX * 4;
+                var calculatedSourceY = r.Y * 4;
                 var calculatedSourceWidth = r.Width * 4;
                 var calculatedSourceHeight = r.Height * 4;
                 
