@@ -1,0 +1,15 @@
+{
+  "Format": "2.4.0",
+  "Sprites": [
+    {
+      "Target": "Portraits/BSeedShop",
+      "PixelReplacements": [
+        {
+          "FromFile": "assets/Pierre_Shop_HD.png",
+          "TargetX": 0,
+          "TargetY": 0
+        }
+      ]
+    }
+  ]
+}

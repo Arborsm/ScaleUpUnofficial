@@ -13,6 +13,16 @@
 - High-resolution character sprites (64x128 pixels)
 - Adjustable chest/breather region positioning
 
+### 🧑‍🌾 HD Farmer Sprites
+- High-resolution farmer (player) sprite sheets (e.g. 4x `Characters/Farmer/farmer_base`)
+- Keeps vanilla proportions and anchors, so eyes/arms/slingshot/swimming/mini-portraits all stay aligned
+- Preserves skin/sleeve/shoe/eye recoloring on HD textures
+
+### 🏪 Shop Portraits (Pixel Replacements)
+- Supports SpritesInDetail `PixelReplacements` (e.g. HD shopkeeper portraits for `Portraits/B*` shop textures, like OO's Shop Portrait pack)
+- The HD replacement texture is drawn into the vanilla portrait area when the source rectangle matches
+- Example packs are provided under [`Examples/`](Examples)
+
 ### ⚙️ Dual Rendering Modes
 1. **Traditional Scaling Mode**  
    Preserves original ScaleUp logic - ideal for items and tiles
@@ -60,6 +70,9 @@
 | `PaddingWidth` | Extra horizontal pixels | 0 |
 | `PaddingHeight` | Extra vertical pixels | 0 |
 | `UseSpriteInDetail` | Enable detailed sprite mode | false |
+| `IsFarmer` | Farmer (player) sprite mode, keeps vanilla geometry | false |
+| `SpriteWidth` | Farmer frame render width in game units (16 = vanilla, 32 = 2x) | 16 |
+| `SpriteHeight` | Farmer frame render height in game units (32 = vanilla, 64 = 2x) | 32 |
 | `BreathType` | Breathing animation type (Male/Female/None) | None |
 | `SpriteOriginX` | Sprite origin X coordinate | - |
 | `SpriteOriginY` | Sprite origin Y coordinate | - |
@@ -106,6 +119,25 @@
    }
 }
 ```
+
+### Adding an HD Farmer Sprite
+```json
+{
+   "YourMod.HDFarmer":
+   {
+      "Asset": "Characters/Farmer/farmer_base",
+      "IsFarmer": true,
+      "Scale": 4,
+      "SpriteWidth": 32,
+      "SpriteHeight": 64
+   }
+}
+```
+- The HD sheet must be a `Scale`× upscale of the vanilla 288x672 layout (e.g. 1152x2688 at 4x), loaded onto the same asset via Content Patcher.
+- `SpriteWidth`/`SpriteHeight` (game units per frame, vanilla is 16x32) control the on-screen render size. Omit them (or set 16x32) to keep the farmer at vanilla size; set 32x64 to render a 2x farmer. Position/anchor alignment of body, eyes, arms, slingshot and accessories is handled automatically at any ratio.
+- Farmer-family accessory textures (`hairstyles`, `shirts`, `pants`, `hats`, `accessories`, ...) can also be registered with the same render size so they stay aligned with an enlarged farmer.
+
+See `Examples/[CP] ExampleHDFarmerDirect` for a complete pack, and `Examples/[SID] ExampleHDFarmer` for the SpritesInDetail equivalent.
 
 ## Performance Notes
 

@@ -1,0 +1,25 @@
+{
+  "Format": "2.4.0",
+  "Changes": [
+    {
+      "Action": "Load",
+      "Target": "Characters/Farmer/farmer_base",
+      "FromFile": "assets/farmer_base_hd.png"
+    },
+    {
+      "Action": "EditData",
+      "Target": "{{Arborsm.ScaleUpUnofficial/Assets}}",
+      "Entries": {
+        "Arborsm.ExampleHDFarmer": [
+          {
+            "Asset": "Characters/Farmer/farmer_base",
+            "IsFarmer": true,
+            "Scale": 4,
+            "SpriteWidth": 32,
+            "SpriteHeight": 64
+          }
+        ]
+      }
+    }
+  ]
+}

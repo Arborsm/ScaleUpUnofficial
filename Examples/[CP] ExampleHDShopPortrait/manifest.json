@@ -1,0 +1,10 @@
+{
+  "Name": "Example HD Shop Portrait Base (CP)",
+  "Author": "Arborsm",
+  "Version": "1.0.0",
+  "Description": "Example Content Patcher pack: creates the Portraits/BSeedShop base texture and assigns it to Pierre's shop (mirrors how OO's pack sets up shop portraits).",
+  "UniqueID": "Arborsm.ExampleHDShopPortrait.CP",
+  "ContentPackFor": {
+    "UniqueID": "Pathoschild.ContentPatcher"
+  }
+}

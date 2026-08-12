@@ -1,4 +1,4 @@
-﻿using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics.CodeAnalysis;
 using System.Text.RegularExpressions;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
@@ -27,6 +27,12 @@ public class ScaleUpData
     public int PaddingWidth { get; set; }
     public int PaddingHeight { get; set; }
     public bool Padded => PaddingWidth + PaddingHeight > 0;
+    /// <summary>是否为农夫(玩家)精灵。农夫由 FarmerRenderer 用内部复制的纹理绘制,需要专门处理。</summary>
+    public bool IsFarmer { get; set; }
+    /// <summary>农夫帧的屏幕渲染宽度(游戏单位,原版为 16)。&gt;16 时按比例放大渲染并保持锚点对齐。</summary>
+    public int? SpriteWidth { get; set; }
+    /// <summary>农夫帧的屏幕渲染高度(游戏单位,原版为 32)。&gt;32 时按比例放大渲染并保持锚点对齐。</summary>
+    public int? SpriteHeight { get; set; }
     public SpriteData? Sprite { get; set; }
     public class SpriteData
     {
@@ -160,6 +166,14 @@ public class ScaleUpData
         var y = row * height;
         return new Rectangle(x, y, width, height);
     }
+}
+
+/// <summary>像素级替换(SpritesInDetail PixelReplacements):绘制源矩形左上角命中 (X, Y) 时,整张替换纹理绘制到目标区域。</summary>
+public class PixelReplacementData
+{
+    public int X { get; set; }
+    public int Y { get; set; }
+    public Texture2D? Texture { get; set; }
 }
 
 public class ReplacedTexture : Texture2D

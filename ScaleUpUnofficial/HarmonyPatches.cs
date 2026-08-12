@@ -1,9 +1,12 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using HarmonyLib;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using Netcode;
+using StardewModdingAPI;
 using StardewValley;
+using StardewValley.Extensions;
 using StardewValley.Menus;
 
 namespace ScaleUpUnofficial;
@@ -103,6 +106,98 @@ public class HarmonyPatches
             prefix: new HarmonyMethod(typeof(HarmonyPatches), nameof(GetSquareSourceRectForNonStandardTileSheet)));
         harmonyInstance.Patch(AccessTools.Method(typeof(Game1), nameof(Game1.getArbitrarySourceRect)),
             prefix: new HarmonyMethod(typeof(HarmonyPatches), nameof(GetArbitrarySourceRect)));
+
+        // HD 农夫精灵支持:FarmerRenderer 会把农夫纹理复制成内部 baseTexture(名字丢失),
+        // 且重着色像素索引按原版尺寸计算,两个补丁分别保留资源名与修正 HD 索引
+        harmonyInstance.Patch(AccessTools.Method(typeof(FarmerRenderer), nameof(FarmerRenderer.textureChanged)),
+            prefix: new HarmonyMethod(typeof(HarmonyPatches), nameof(FarmerTextureChanged)));
+        harmonyInstance.Patch(AccessTools.Method(typeof(FarmerRenderer), "_GeneratePixelIndices"),
+            prefix: new HarmonyMethod(typeof(HarmonyPatches), nameof(GeneratePixelIndices)));
+        // 记录农夫身体锚点,供放大渲染时做锚点补偿
+        harmonyInstance.Patch(
+            AccessTools.Method(typeof(FarmerRenderer), nameof(FarmerRenderer.draw), new[]
+            {
+                typeof(SpriteBatch), typeof(FarmerSprite.AnimationFrame), typeof(int), typeof(Rectangle),
+                typeof(Vector2), typeof(Vector2), typeof(float), typeof(int), typeof(Color),
+                typeof(float), typeof(float), typeof(Farmer)
+            }),
+            prefix: new HarmonyMethod(typeof(HarmonyPatches), nameof(FarmerDrawPrefix)),
+            finalizer: new HarmonyMethod(typeof(HarmonyPatches), nameof(FarmerDrawFinalizer)));
+    }
+
+    /// <summary>当前 FarmerRenderer.draw 调用中身体四格的左上角(原版坐标),无调用时为 null。</summary>
+    private static Vector2? _farmerBodyAnchor;
+
+    private static void FarmerDrawPrefix(FarmerSprite.AnimationFrame animationFrame, Vector2 position, Vector2 origin, Farmer who)
+    {
+        try
+        {
+            var bodyPosition = position + origin + new Vector2(animationFrame.xOffset * 4f, animationFrame.positionOffset * 4f);
+            if (!FarmerRenderer.isDrawingForUI && who.swimming.Value)
+            {
+                bodyPosition.Y += 64f;
+            }
+            _farmerBodyAnchor = bodyPosition - origin * 4f;
+        }
+        catch (Exception e)
+        {
+            LogPatchErrorOnce(nameof(FarmerDrawPrefix), e);
+        }
+    }
+
+    private static void FarmerDrawFinalizer()
+    {
+        _farmerBodyAnchor = null;
+    }
+
+    private static readonly HashSet<string> _patchErrorsLogged = new();
+
+    private static void LogPatchErrorOnce(string where, Exception e)
+    {
+        if (_patchErrorsLogged.Add(where))
+        {
+            ScaleUpMod.Instance?.Monitor.Log($"[ScaleUp] patch error in {where} (falling back to vanilla): {e}", LogLevel.Error);
+        }
+    }
+
+    /// <summary>重建农夫 baseTexture 时保留资源名,让 SpriteBatch.Draw 补丁仍能按名字匹配 HD 纹理。</summary>
+    [SuppressMessage("ReSharper", "InconsistentNaming")]
+    private static bool FarmerTextureChanged(ref Texture2D ___baseTexture, LocalizedContentManager ___farmerTextureManager, NetString ___textureName)
+    {
+        var assetName = ___textureName.Value.Replace('\\', '/');
+        if (!TryGetScaleData(assetName, out var data) || data is not { IsFarmer: true })
+            return true;
+
+        if (___baseTexture != null)
+        {
+            ___baseTexture.Dispose();
+            ___baseTexture = null;
+        }
+        var texture = ___farmerTextureManager.Load<Texture2D>(___textureName.Value);
+        var newTexture = new Texture2D(Game1.graphics.GraphicsDevice, texture.Width, texture.Height)
+        {
+            Name = assetName
+        };
+        var pixels = new Color[texture.Width * texture.Height];
+        texture.GetData(pixels, 0, pixels.Length);
+        newTexture.SetData(pixels);
+        ___baseTexture = newTexture;
+        return false;
+    }
+
+    /// <summary>HD 农夫纹理(大于原版 288x672)的调色板槽位索引按 4 倍换算(移植自 SpritesInDetail)。</summary>
+    private static bool GeneratePixelIndices(int source_color_index, string texture_name, Color[] pixels)
+    {
+        var stride = pixels.Length > 288 * 672 ? 4 : 1;
+        var color = pixels[source_color_index * stride];
+        var list = new List<int>();
+        for (var i = 0; i < pixels.Length; i++)
+        {
+            if (pixels[i].PackedValue == color.PackedValue)
+                list.Add(i);
+        }
+        FarmerRenderer.recolorOffsets[texture_name][source_color_index] = list;
+        return false;
     }
     
     [SuppressMessage("ReSharper", "UnusedParameter.Local")]
@@ -348,10 +443,40 @@ public class HarmonyPatches
             return true;
         }
 
+        if (data.IsFarmer)
+        {
+            try
+            {
+                return DrawFarmerSprite(__instance, texture, destination,
+                    sourceRectangle, color, rotation, origin, effects, layerDepth, data);
+            }
+            catch (Exception e)
+            {
+                LogPatchErrorOnce(nameof(DrawFarmerSprite), e);
+                return true;
+            }
+        }
+
         if (data.Sprite != null)
         {
             return DrawWithSpriteInDetail(__instance, texture, destination,
                 sourceRectangle, color, rotation, origin, scale, effects, layerDepth, data);
+        }
+
+        if (texture.Name != null &&
+            ScaleUpMod.PixelReplacementsByAsset.TryGetValue(texture.Name, out var pixelReplacements) &&
+            pixelReplacements.Count > 0)
+        {
+            try
+            {
+                return DrawWithPixelReplacements(__instance, destination, sourceRectangle, color, rotation, origin,
+                    effects, layerDepth, pixelReplacements);
+            }
+            catch (Exception e)
+            {
+                LogPatchErrorOnce(nameof(DrawWithPixelReplacements), e);
+                return true;
+            }
         }
 
         if (texture is ReplacedTexture replacedTexture)
@@ -383,6 +508,83 @@ public class HarmonyPatches
         return false;
     }
     
+    /// <summary>HD 农夫精灵绘制:源矩形按 Scale(纹理分辨率倍率)换算;SpriteWidth/SpriteHeight 决定屏幕渲染
+    /// 尺寸(默认 16x32 即原版几何)。大于原版时,以 FarmerRenderer.draw 记录的身体锚点(底边中心)为放大中心
+    /// 做补偿变换,使身体/眼睛/手臂/弹弓/配饰在任意倍率下保持对齐,旋转也围绕同一逻辑点。</summary>
+    private static bool DrawFarmerSprite(SpriteBatch __instance, Texture2D texture, Rectangle destination,
+        Rectangle? sourceRectangle, Color color, float rotation, Vector2 origin, SpriteEffects effects,
+        float layerDepth, ScaleUpData data)
+    {
+        if (!sourceRectangle.HasValue)
+        {
+            return true;
+        }
+
+        if (texture is ReplacedTexture replacedTexture)
+        {
+            texture = replacedTexture.NewTexture!;
+        }
+
+        var r = sourceRectangle.Value;
+        var resScale = data.Scale > 0 ? data.Scale : 4;
+        var updatedSource = new Rectangle((int)(r.X * resScale), (int)(r.Y * resScale), (int)(r.Width * resScale), (int)(r.Height * resScale));
+        var ratio = new Vector2((float)destination.Width / r.Width, (float)destination.Height / r.Height);
+        var k = new Vector2((data.SpriteWidth ?? 16) / 16f, (data.SpriteHeight ?? 32) / 32f);
+
+        if (k == Vector2.One)
+        {
+            // 原版几何:源矩形与 origin 统一按分辨率倍率换算,屏幕尺寸与锚点不变
+            _spriteAlreadyDrawn = true;
+            __instance.Draw(texture, destination, updatedSource, color, rotation, origin * resScale, effects, layerDepth);
+            _spriteAlreadyDrawn = false;
+            return false;
+        }
+
+        // 放大渲染:每个绘制点绕锚点放大 k 倍;无锚点记录时(UI 绘制)退化为绕自身四格底边中心
+        var vanillaTopleft = destination.Location.ToVector2() - origin * ratio;
+        var center = _farmerBodyAnchor.HasValue
+            ? _farmerBodyAnchor.Value + new Vector2(32, 128)
+            : vanillaTopleft + new Vector2(destination.Width / 2f, destination.Height);
+        var position = center + (destination.Location.ToVector2() - center) * k;
+        var newScale = ratio * k / resScale;
+
+        _spriteAlreadyDrawn = true;
+        __instance.Draw(texture, position, updatedSource, color, rotation, origin * resScale, newScale, effects, layerDepth);
+        _spriteAlreadyDrawn = false;
+        return false;
+    }
+
+    /// <summary>像素级替换绘制(移植自 SpritesInDetail):源矩形左上角命中替换点时,整张替换纹理绘制到目标区域。</summary>
+    private static bool DrawWithPixelReplacements(SpriteBatch __instance, Rectangle destination,
+        Rectangle? sourceRectangle, Color color, float rotation, Vector2 origin, SpriteEffects effects,
+        float layerDepth, List<PixelReplacementData> pixelReplacements)
+    {
+        if (!sourceRectangle.HasValue)
+        {
+            return true;
+        }
+
+        var r = sourceRectangle.Value;
+        foreach (var pixelReplacement in pixelReplacements)
+        {
+            if (pixelReplacement.Texture == null || pixelReplacement.X != r.X || pixelReplacement.Y != r.Y)
+            {
+                continue;
+            }
+
+            var newOrigin = new Vector2(
+                origin.X * pixelReplacement.Texture.Width / r.Width,
+                origin.Y * pixelReplacement.Texture.Height / r.Height);
+
+            _spriteAlreadyDrawn = true;
+            __instance.Draw(pixelReplacement.Texture, destination, null, color, rotation, newOrigin, effects, layerDepth);
+            _spriteAlreadyDrawn = false;
+            return false;
+        }
+
+        return true;
+    }
+
     private static bool DrawWithSpriteInDetail(SpriteBatch __instance, Texture2D texture, Rectangle destination,
         Rectangle? sourceRectangle, Color color, float rotation, Vector2 origin, Vector2 scale,
         SpriteEffects effects, float layerDepth, ScaleUpData data)

@@ -1,0 +1,51 @@
+{
+  "Format": "2.4.0",
+  "Sprites": [
+    {
+      "Target": "Characters/Farmer/farmer_base",
+      "FromFile": "assets/farmer_base_hd.png",
+      "WidthScale": 4,
+      "HeightScale": 4,
+      "SpriteWidth": 32,
+      "SpriteHeight": 64
+    },
+    {
+      "Target": "Characters/Farmer/farmer_girl_base",
+      "FromFile": "assets/farmer_girl_base_hd.png",
+      "WidthScale": 4,
+      "HeightScale": 4,
+      "SpriteWidth": 32,
+      "SpriteHeight": 64
+    },
+    {
+      "Target": "Characters/Farmer/hairstyles",
+      "SpriteWidth": 32,
+      "SpriteHeight": 64
+    },
+    {
+      "Target": "Characters/Farmer/hairstyles2",
+      "SpriteWidth": 32,
+      "SpriteHeight": 64
+    },
+    {
+      "Target": "Characters/Farmer/shirts",
+      "SpriteWidth": 32,
+      "SpriteHeight": 64
+    },
+    {
+      "Target": "Characters/Farmer/pants",
+      "SpriteWidth": 32,
+      "SpriteHeight": 64
+    },
+    {
+      "Target": "Characters/Farmer/hats",
+      "SpriteWidth": 32,
+      "SpriteHeight": 64
+    },
+    {
+      "Target": "Characters/Farmer/accessories",
+      "SpriteWidth": 32,
+      "SpriteHeight": 64
+    }
+  ]
+}

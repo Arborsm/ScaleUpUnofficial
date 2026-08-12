@@ -1,4 +1,4 @@
-﻿using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.Xna.Framework.Graphics;
 using ScaleUpUnofficial;
 using StardewModdingAPI;
@@ -49,38 +49,8 @@ public class SpritesInDetailToScaleUpMod : Mod
                         }
                     });
                 }
-                
-                if (sprite.PixelReplacements is { Count: > 0 })
-                {
-                    var pixelReplacement = sprite.PixelReplacements.FirstOrDefault();
-                    if (pixelReplacement?.FromFile == null) continue;
-                    e.Edit(asset =>
-                    {
-                        if (OperatingSystem.IsAndroid())
-                        {
-                            ReplacedTexture replacement = null!;
-                            var replace = contentPack.ModContent.Load<Texture2D>(pixelReplacement.FromFile);
-                            var textureDataGathered = new ManualResetEvent(false);
-                            if (OperatingSystem.IsAndroid())
-                            {
-                                HarmonyPatches.EnqueueAction(() =>
-                                {
-                                    replacement = new ReplacedTexture(asset.AsImage().Data, replace);
-                                    textureDataGathered.Set();
-                                });
-                                textureDataGathered.WaitOne();
-                                textureDataGathered.Reset();
-                            }
-                            asset.AsImage().ReplaceWith(replacement);
-                        }
-                        else
-                        {
-                            var replace = contentPack.ModContent.Load<Texture2D>(pixelReplacement.FromFile);
-                            var replacement = new ReplacedTexture(asset.AsImage().Data, replace);
-                            asset.AsImage().ReplaceWith(replacement);
-                        }
-                    });
-                }
+                // PixelReplacements 不再包裹纹理:替换纹理注册到 ScaleUpMod.PixelReplacementsByAsset,
+                // 由绘制补丁按源矩形命中处理,未命中时按原版纹理正常绘制
             }
         }
     }
@@ -101,8 +71,10 @@ public class SpritesInDetailToScaleUpMod : Mod
     private Dictionary<string, ScaleUpData> LoadSpritesInDetailData()
     {
         var result = new Dictionary<string, ScaleUpData>();
-        
+
         if (ScaleUpMod.Instance == null) return result;
+
+        ScaleUpMod.PixelReplacementsByAsset.Clear();
 
         var contentPackSettings = new Dictionary<string, string>();
         foreach (var contentPack in Helper.ContentPacks.GetOwned())
@@ -187,25 +159,11 @@ public class SpritesInDetailToScaleUpMod : Mod
                 {
                     result.TryAdd(sprite.Target, scaleUpData);
                 }
-                
-                foreach (var pixelReplacement in sprite.PixelReplacements)
-                {
-                    if (pixelReplacement.TargetX == null || pixelReplacement.TargetY == null || 
-                        string.IsNullOrEmpty(pixelReplacement.FromFile))
-                    {
-                        Monitor.Log($"Missing required fields for PixelReplacement in {sprite.Target}, skipping...", LogLevel.Warn);
-                        continue;
-                    }
 
-                    var pixelScaleUpData = ConvertPixelReplacementToScaleUpData(pixelReplacement, sprite.Target, contentPack);
-                    
-                    if (pixelScaleUpData != null)
-                    {
-                        if (!result.ContainsKey(sprite.Target))
-                            result.TryAdd(sprite.Target, pixelScaleUpData);
-                        else
-                            result[sprite.Target] = pixelScaleUpData;
-                    }
+                // 像素级替换(仅当没有 FromFile 整图替换时生效,与 SpritesInDetail 一致)
+                if (string.IsNullOrEmpty(sprite.FromFile) && sprite.PixelReplacements.Count > 0)
+                {
+                    RegisterPixelReplacements(sprite, contentPack);
                 }
             }
         }
@@ -213,25 +171,76 @@ public class SpritesInDetailToScaleUpMod : Mod
         return result;
     }
 
+    private void RegisterPixelReplacements(Sprite sprite, IContentPack contentPack)
+    {
+        var replacements = new List<PixelReplacementData>();
+        foreach (var pixelReplacement in sprite.PixelReplacements)
+        {
+            if (pixelReplacement.TargetX == null || pixelReplacement.TargetY == null ||
+                string.IsNullOrEmpty(pixelReplacement.FromFile))
+            {
+                Monitor.Log($"Missing required fields for PixelReplacement in {sprite.Target}, skipping...", LogLevel.Warn);
+                continue;
+            }
+
+            try
+            {
+                replacements.Add(new PixelReplacementData
+                {
+                    X = pixelReplacement.TargetX.Value,
+                    Y = pixelReplacement.TargetY.Value,
+                    Texture = contentPack.ModContent.Load<Texture2D>(pixelReplacement.FromFile)
+                });
+            }
+            catch (Exception ex)
+            {
+                Monitor.Log($"Cannot load replacement texture {pixelReplacement.FromFile}, skip PixelReplacement: {ex.Message}", LogLevel.Warn);
+            }
+        }
+
+        if (replacements.Count > 0)
+        {
+            ScaleUpMod.PixelReplacementsByAsset[sprite.Target] = replacements;
+        }
+    }
+
     private static ScaleUpData? ConvertSpriteToScaleUpData(Sprite sprite)
     {
         if (string.IsNullOrEmpty(sprite.Target)) return null;
+
+        // 农夫(玩家)精灵由 FarmerRenderer 用内部复制的纹理绘制,走专门的 Farmer 分支,
+        // 不使用 NPC 的 Sprite 细节逻辑
+        var isFarmer = sprite.Target.Contains("Farmer");
 
         // Asset 必须是游戏资源名（Target），不能是内容包内的文件路径：
         // ScaleUp 主模组会用 GameContent.Load 加载它来读取尺寸，并按纹理名匹配绘制调用；
         // FromFile 的高清纹理已在 Content_AssetRequested 里通过 LoadFrom/Edit 替换到 Target 上
         var scaleUpData = new ScaleUpData
         {
-            Asset = sprite.Target
+            Asset = sprite.Target,
+            IsFarmer = isFarmer
         };
+
+        if (isFarmer)
+        {
+            // 有 FromFile 时 Scale 是纹理分辨率倍率(默认 4);无 FromFile 时纹理保持原版,
+            // Scale=1 仅按 SpriteWidth/SpriteHeight 做屏幕放大与锚点补偿(画面会糊,仅过渡用法)
+            scaleUpData.Scale = sprite.FromFile != null
+                ? Math.Max(sprite.WidthScale ?? 4, sprite.HeightScale ?? 4)
+                : 1;
+            scaleUpData.SpriteWidth = sprite.SpriteWidth;
+            scaleUpData.SpriteHeight = sprite.SpriteHeight;
+            return scaleUpData;
+        }
 
         var widthScale = sprite.WidthScale ?? 4;
         var heightScale = sprite.HeightScale ?? 4;
         scaleUpData.Scale = Math.Max(widthScale, heightScale);
 
-        if (sprite.SpriteWidth.HasValue || sprite.SpriteHeight.HasValue || 
-            sprite.SpriteOriginX.HasValue || sprite.SpriteOriginY.HasValue ||
-            sprite.BreathType.HasValue || sprite.ChestSourceX.HasValue)
+        if (!isFarmer &&
+            (sprite.SpriteWidth.HasValue || sprite.SpriteHeight.HasValue ||
+             sprite.SpriteOriginX.HasValue || sprite.SpriteOriginY.HasValue ||
+             sprite.BreathType.HasValue || sprite.ChestSourceX.HasValue))
         {
             scaleUpData.Sprite = new ScaleUpData.SpriteData
             {
@@ -248,68 +257,6 @@ public class SpritesInDetailToScaleUpMod : Mod
         }
 
         return scaleUpData;
-    }
-
-    private ScaleUpData? ConvertPixelReplacementToScaleUpData(
-        PixelReplacement pixelReplacement, 
-        string targetAsset, 
-        IContentPack contentPack)
-    {
-        if (string.IsNullOrEmpty(pixelReplacement.FromFile) || 
-            pixelReplacement.TargetX == null || 
-            pixelReplacement.TargetY == null)
-        {
-            return null;
-        }
-
-        try
-        {
-            Texture2D? originalTexture = null;
-            try
-            {
-                originalTexture = Helper.GameContent.Load<Texture2D>(targetAsset);
-            }
-            catch
-            {
-                Monitor.Log($"Cannot load original texture {targetAsset}，using default scale 1.0f", LogLevel.Warn);
-            }
-            
-            Texture2D? replacementTexture;
-            try
-            {
-                replacementTexture = contentPack.ModContent.Load<Texture2D>(pixelReplacement.FromFile);
-            }
-            catch
-            {
-                Monitor.Log($"Cannot load replacement texture {pixelReplacement.FromFile}，skip PixelReplacement", LogLevel.Warn);
-                return null;
-            }
-            
-            float scale = 1.0f;
-            if (originalTexture != null && replacementTexture != null)
-            {
-                float widthScale = (float)replacementTexture.Width / originalTexture.Width;
-                float heightScale = (float)replacementTexture.Height / originalTexture.Height;
-                scale = Math.Max(widthScale, heightScale);
-            }
-            else if (replacementTexture != null)
-            {
-                scale = 4f;
-            }
-            
-            var scaleUpData = new ScaleUpData
-            {
-                Asset = targetAsset,
-                Scale = scale
-            };
-
-            return scaleUpData;
-        }
-        catch (Exception ex)
-        {
-            Monitor.Log($"Parse PixelReplacement Error: {ex.Message}", LogLevel.Error);
-            return null;
-        }
     }
 
     private void GameLoop_GameLaunched(object? sender, GameLaunchedEventArgs e)
@@ -349,6 +296,8 @@ public class SpritesInDetailToScaleUpMod : Mod
         {
             ScaleUpMod.ScalesByAsset.TryAdd(targetAsset, scaleUpData);
         }
+        // 数据更新后,之前按"未命中"缓存的纹理名可能已变为已注册资源,需要清掉重查
+        HarmonyPatches.NonScaledTextureNames.Clear();
     }
 
     [SuppressMessage("ReSharper", "UnusedMember.Global")]

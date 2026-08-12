@@ -1,0 +1,18 @@
+{
+  "Format": "2.4.0",
+  "Changes": [
+    {
+      "Action": "Load",
+      "Target": "Portraits/BSeedShop",
+      "FromFile": "assets/BSeedShop_Base.png"
+    },
+    {
+      "Action": "EditData",
+      "Target": "Data/Shops",
+      "TargetField": ["SeedShop", "Owners", "Pierre"],
+      "Entries": {
+        "Portrait": "Portraits/BSeedShop"
+      }
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "Name": "Example HD Farmer Direct (ScaleUp)",
+  "Author": "Arborsm",
+  "Version": "1.0.0",
+  "Description": "Example Content Patcher pack: registers an HD farmer sprite directly through ScaleUp Unofficial (no SpritesInDetail pack needed).",
+  "UniqueID": "Arborsm.ExampleHDFarmer.Direct",
+  "ContentPackFor": {
+    "UniqueID": "Pathoschild.ContentPatcher"
+  }
+}

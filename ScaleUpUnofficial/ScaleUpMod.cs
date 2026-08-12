@@ -11,6 +11,8 @@ public sealed class ScaleUpMod : Mod
     public const string ScaleUpName = "Arborsm.ScaleUpUnofficial";
     public const string ScaleUpdDataAsset = $"{ScaleUpName}/Assets";
     public static Dictionary<string, ScaleUpData?> ScalesByAsset { get; } = new();
+    /// <summary>像素级替换表(运行时数据,不走资源序列化),键为游戏资源名。</summary>
+    public static Dictionary<string, List<PixelReplacementData>> PixelReplacementsByAsset { get; } = new();
     public static ScaleUpMod? Instance { get; private set; }
     
     public override void Entry(IModHelper helper)
