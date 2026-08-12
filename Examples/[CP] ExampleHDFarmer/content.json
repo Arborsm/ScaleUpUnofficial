@@ -1,10 +1,15 @@
 {
-  "Format": "2.4.0",
+  "Format": "2.0.0",
   "Changes": [
     {
       "Action": "Load",
       "Target": "Characters/Farmer/farmer_base",
       "FromFile": "assets/farmer_base_hd.png"
+    },
+    {
+      "Action": "Load",
+      "Target": "Characters/Farmer/farmer_girl_base",
+      "FromFile": "assets/farmer_girl_base_hd.png"
     },
     {
       "Action": "EditData",
@@ -13,6 +18,13 @@
         "Arborsm.ExampleHDFarmer": [
           {
             "Asset": "Characters/Farmer/farmer_base",
+            "IsFarmer": true,
+            "Scale": 4,
+            "SpriteWidth": 32,
+            "SpriteHeight": 64
+          },
+          {
+            "Asset": "Characters/Farmer/farmer_girl_base",
             "IsFarmer": true,
             "Scale": 4,
             "SpriteWidth": 32,

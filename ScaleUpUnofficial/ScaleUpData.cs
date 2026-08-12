@@ -34,6 +34,8 @@ public class ScaleUpData
     /// <summary>农夫帧的屏幕渲染高度(游戏单位,原版为 32)。&gt;32 时按比例放大渲染并保持锚点对齐。</summary>
     public int? SpriteHeight { get; set; }
     public SpriteData? Sprite { get; set; }
+    /// <summary>像素级替换(本模组直接配置): 绘制源矩形左上角命中 (X, Y) 时,用 FromAsset 资产名指向的纹理绘制到目标区域。</summary>
+    public List<PixelReplacementData>? PixelReplacements { get; set; }
     public class SpriteData
     {
         public bool? IsSmallSprite { get; set; } 
@@ -168,9 +170,11 @@ public class ScaleUpData
     }
 }
 
-/// <summary>像素级替换(SpritesInDetail PixelReplacements):绘制源矩形左上角命中 (X, Y) 时,整张替换纹理绘制到目标区域。</summary>
+/// <summary>像素级替换(SpritesInDetail PixelReplacements):绘制源矩形左上角命中 (X, Y) 时,整张替换纹理绘制到目标区域。
+/// FromAsset 为替换纹理的资产名(JSON 配置),运行时加载到 Texture。</summary>
 public class PixelReplacementData
 {
+    public string? FromAsset { get; set; }
     public int X { get; set; }
     public int Y { get; set; }
     public Texture2D? Texture { get; set; }

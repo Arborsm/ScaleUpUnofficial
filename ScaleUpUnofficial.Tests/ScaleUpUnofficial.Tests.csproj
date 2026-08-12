@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net6.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <IsPackable>false</IsPackable>
+        <GamePath>E:\SteamLibrary\steamapps\common\Stardew Valley</GamePath>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.13.0"/>
+        <PackageReference Include="xunit" Version="2.9.2"/>
+        <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\ScaleUpUnofficial\ScaleUpUnofficial.csproj"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <!-- 测试只访问 mod 的纯数学(不启动游戏),但把游戏 DLL 复制到测试输出,保证类型加载时引用可解析 -->
+        <Reference Include="MonoGame.Framework">
+            <HintPath>$(GamePath)\MonoGame.Framework.dll</HintPath>
+        </Reference>
+        <Reference Include="Stardew Valley">
+            <HintPath>$(GamePath)\Stardew Valley.dll</HintPath>
+        </Reference>
+        <Reference Include="StardewModdingAPI">
+            <HintPath>$(GamePath)\StardewModdingAPI.dll</HintPath>
+        </Reference>
+        <Reference Include="xTile">
+            <HintPath>$(GamePath)\xTile.dll</HintPath>
+        </Reference>
+    </ItemGroup>
+
+</Project>

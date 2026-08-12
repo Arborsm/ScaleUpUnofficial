@@ -1,5 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Text.RegularExpressions;
+using Microsoft.Xna.Framework.Graphics;
 using StardewModdingAPI;
 using StardewModdingAPI.Events;
 
@@ -68,6 +69,16 @@ public sealed class ScaleUpMod : Mod
         }
     }
     
+    /// <summary>像素级替换的注册入口(本模组配置与兼容层映射共用): 替换纹理需已加载到 Texture,按目标资产名覆盖注册。</summary>
+    public static void RegisterPixelReplacements(string targetAsset, List<PixelReplacementData> replacements)
+    {
+        if (string.IsNullOrEmpty(targetAsset) || replacements is not { Count: > 0 })
+        {
+            return;
+        }
+        PixelReplacementsByAsset[targetAsset] = replacements;
+    }
+
     private static void UpdateScalesByAssetDictionary()
     {
         if (Instance == null) return;
@@ -85,8 +96,37 @@ public sealed class ScaleUpMod : Mod
                     ScalesByAsset.TryAdd(scale.FinalAsset(asset), scale);
                 }
             }
+
+            // 像素级替换(本模组直接配置): 按 FromAsset 资产名加载替换纹理并注册到绘制补丁
+            if (scale.Asset != null && scale.PixelReplacements is { Count: > 0 })
+            {
+                var replacements = new List<PixelReplacementData>();
+                foreach (var pixelReplacement in scale.PixelReplacements)
+                {
+                    if (string.IsNullOrEmpty(pixelReplacement.FromAsset))
+                    {
+                        Instance.Monitor.Log($"Missing FromAsset for PixelReplacement on {scale.Asset}, skipping", LogLevel.Warn);
+                        continue;
+                    }
+                    try
+                    {
+                        replacements.Add(new PixelReplacementData
+                        {
+                            X = pixelReplacement.X,
+                            Y = pixelReplacement.Y,
+                            Texture = Instance.Helper.GameContent.Load<Texture2D>(pixelReplacement.FromAsset)
+                        });
+                    }
+                    catch (Exception e)
+                    {
+                        Instance.Monitor.Log($"Cannot load replacement texture {pixelReplacement.FromAsset}: {e.Message}", LogLevel.Warn);
+                    }
+                }
+                RegisterPixelReplacements(scale.Asset, replacements);
+            }
         }
         HarmonyPatches.NonScaledTextureNames.Clear();
+        HarmonyPatches.ClearOrgSizeTextureCache();
     }
 
     public static event EventHandler<AssetRequestedEventArgs> AssetRequested = (_, _) => { };

@@ -49,8 +49,6 @@ public class SpritesInDetailToScaleUpMod : Mod
                         }
                     });
                 }
-                // PixelReplacements 不再包裹纹理:替换纹理注册到 ScaleUpMod.PixelReplacementsByAsset,
-                // 由绘制补丁按源矩形命中处理,未命中时按原版纹理正常绘制
             }
         }
     }
@@ -73,8 +71,6 @@ public class SpritesInDetailToScaleUpMod : Mod
         var result = new Dictionary<string, ScaleUpData>();
 
         if (ScaleUpMod.Instance == null) return result;
-
-        ScaleUpMod.PixelReplacementsByAsset.Clear();
 
         var contentPackSettings = new Dictionary<string, string>();
         foreach (var contentPack in Helper.ContentPacks.GetOwned())
@@ -160,10 +156,11 @@ public class SpritesInDetailToScaleUpMod : Mod
                     result.TryAdd(sprite.Target, scaleUpData);
                 }
 
-                // 像素级替换(仅当没有 FromFile 整图替换时生效,与 SpritesInDetail 一致)
+                // 像素级替换映射: SID 格式(FromFile 文件路径) → 本模组 PixelReplacementData(已加载 Texture),
+                // 经本模组的注册入口统一注册,由本模组绘制补丁处理(仅当没有 FromFile 整图替换时生效)
                 if (string.IsNullOrEmpty(sprite.FromFile) && sprite.PixelReplacements.Count > 0)
                 {
-                    RegisterPixelReplacements(sprite, contentPack);
+                    MapPixelReplacements(sprite, contentPack);
                 }
             }
         }
@@ -171,7 +168,8 @@ public class SpritesInDetailToScaleUpMod : Mod
         return result;
     }
 
-    private void RegisterPixelReplacements(Sprite sprite, IContentPack contentPack)
+    /// <summary>把 SID 像素替换映射到本模组数据结构: 加载文件纹理, 调用本模组的注册 API(不直接操作其字典)。</summary>
+    private void MapPixelReplacements(Sprite sprite, IContentPack contentPack)
     {
         var replacements = new List<PixelReplacementData>();
         foreach (var pixelReplacement in sprite.PixelReplacements)
@@ -198,10 +196,7 @@ public class SpritesInDetailToScaleUpMod : Mod
             }
         }
 
-        if (replacements.Count > 0)
-        {
-            ScaleUpMod.PixelReplacementsByAsset[sprite.Target] = replacements;
-        }
+        ScaleUpMod.RegisterPixelReplacements(sprite.Target, replacements);
     }
 
     private static ScaleUpData? ConvertSpriteToScaleUpData(Sprite sprite)

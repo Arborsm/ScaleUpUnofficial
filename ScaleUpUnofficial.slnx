@@ -8,4 +8,7 @@
   <Project Path="SpritesInDetailCompatibilityLayer\SpritesInDetailCompatibilityLayer.csproj" Type="Classic C#">
     <Configuration Solution="Release|Any CPU" Project="Release|Any CPU|Deploy" />
   </Project>
+  <Project Path="ScaleUpUnofficial.Tests\ScaleUpUnofficial.Tests.csproj" Type="Classic C#">
+    <Configuration Solution="Release|Any CPU" Project="Release|Any CPU" />
+  </Project>
 </Solution>

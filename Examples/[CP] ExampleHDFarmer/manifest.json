@@ -1,0 +1,16 @@
+{
+  "Name": "Example HD Farmer",
+  "Author": "Arborsm",
+  "Version": "1.0.0",
+  "Description": "Example pack for ScaleUp Unofficial: 4x HD farmer sprites (male & female). The texture keeps the body at vanilla screen size with an extended render canvas above it - see the green/red guide zones on the standing frames.",
+  "UniqueID": "Arborsm.ExampleHDFarmer",
+  "ContentPackFor": {
+    "UniqueID": "Pathoschild.ContentPatcher"
+  },
+  "Dependencies": [
+    {
+      "UniqueID": "Arborsm.ScaleUpUnofficial",
+      "MinimumVersion": "2.7.0"
+    }
+  ]
+}

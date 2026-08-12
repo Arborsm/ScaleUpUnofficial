@@ -1,0 +1,28 @@
+{
+  "Format": "2.0.0",
+  "Changes": [
+    {
+      "Action": "Load",
+      "Target": "Mods/Arborsm.ExamplePixelReplacementPortrait/Pierre_Face_HD",
+      "FromFile": "assets/Pierre_Face_HD.png"
+    },
+    {
+      "Action": "EditData",
+      "Target": "{{Arborsm.ScaleUpUnofficial/Assets}}",
+      "Entries": {
+        "Arborsm.ExamplePixelReplacementPortrait": [
+          {
+            "Asset": "Portraits/Pierre",
+            "PixelReplacements": [
+              {
+                "FromAsset": "Mods/Arborsm.ExamplePixelReplacementPortrait/Pierre_Face_HD",
+                "X": 0,
+                "Y": 0
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

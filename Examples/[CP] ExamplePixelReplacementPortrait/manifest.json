@@ -1,0 +1,16 @@
+{
+  "Name": "Example PixelReplacement Portrait",
+  "Author": "Arborsm",
+  "Version": "1.0.0",
+  "Description": "Example pack for ScaleUp Unofficial: HD pixel replacement of Pierre's first dialogue portrait cell (Portraits/Pierre at 0,0).",
+  "UniqueID": "Arborsm.ExamplePixelReplacementPortrait",
+  "ContentPackFor": {
+    "UniqueID": "Pathoschild.ContentPatcher"
+  },
+  "Dependencies": [
+    {
+      "UniqueID": "Arborsm.ScaleUpUnofficial",
+      "MinimumVersion": "2.7.0"
+    }
+  ]
+}

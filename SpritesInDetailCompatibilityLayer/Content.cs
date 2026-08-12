@@ -33,6 +33,7 @@ public class Sprite
     public List<PixelReplacement> PixelReplacements { get; set; } = new();
 }
 
+/// <summary>SID 格式的像素级替换(FromFile 为内容包内文件路径),由兼容层映射到本模组的 PixelReplacementData。</summary>
 public class PixelReplacement
 {
     public int? TargetX { get; set; }
